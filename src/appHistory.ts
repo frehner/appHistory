@@ -1,31 +1,43 @@
 import { fakeRandomId } from "./helpers";
 
-export const appHistory: AppHistory = {
-  currentEntry: Object.freeze({
-    key: fakeRandomId(),
-    url: "http",
-    state: null,
-    sameDocument: true,
-    onnavigateto: () => {},
-    onupcomingnavigate: () => {},
-    oncurrententrychange: () => {},
-  }),
-  updateCurrentEntry,
-  pushNewEntry: (options: AppHistoryEntryOptions) => Promise.resolve(undefined),
-  entries: Object.freeze([]),
-  navigateTo: () => Promise.resolve(undefined),
-  back: () => Promise.resolve(undefined),
-  forward: () => Promise.resolve(undefined),
-};
+export class AppHistory {
+  currentEntry: Readonly<AppHistoryEntry>;
+  entries: Readonly<AppHistoryEntry[]>;
 
-function updateCurrentEntry(options: AppHistoryEntryOptions): void {
-  const newState = options?.state !== null ? history.state : options.state;
-  const newUrl = options?.url ?? location.href;
+  updateCurrentEntry(options: AppHistoryEntryOptions): void {
+    const newState =
+      options?.state !== undefined ? options.state : this.currentEntry.state;
+    const newUrl = options?.url ?? this.currentEntry.url;
+    const newEntry = this.createNewEntry({ newUrl, newState });
+    this.currentEntry = newEntry;
+    const [replacedEntry, ...restEntries] = this.entries;
+    this.entries = Object.freeze([newEntry, ...restEntries]);
+  }
+
+  private createNewEntry({
+    newUrl,
+    newState,
+  }: {
+    newUrl?: string;
+    newState?: any | null;
+  }): Readonly<AppHistoryEntry> {
+    return Object.freeze({
+      key: fakeRandomId(),
+      url: newUrl,
+      state: newState,
+      sameDocument: true,
+      onnavigateto: () => {},
+      onupcomingnavigate: () => {},
+      oncurrententrychange: () => {},
+    });
+  }
+
+  constructor() {
+    this.currentEntry = this.createNewEntry({ newUrl: "test" });
+    this.entries = Object.freeze([this.currentEntry]);
+  }
 }
 
-export type AppHistoryEntryKey = string;
-
-// interface AppHistoryEntry extends EventTarget {
 interface AppHistoryEntry {
   key: AppHistoryEntryKey;
   url: string;
@@ -36,18 +48,9 @@ interface AppHistoryEntry {
   oncurrententrychange: Readonly<EventHandlerNonNull>;
 }
 
+export type AppHistoryEntryKey = string;
+
 type AppHistoryEntryOptions = {
   url?: string;
   state?: any | null;
 };
-
-// interface AppHistory extends EventTarget {
-interface AppHistory {
-  currentEntry: Readonly<AppHistoryEntry>;
-  updateCurrentEntry: (options?: AppHistoryEntryOptions) => void;
-  pushNewEntry: (options?: AppHistoryEntryOptions) => Promise<undefined>;
-  entries: readonly AppHistoryEntry[];
-  navigateTo: (key: AppHistoryEntryKey) => Promise<undefined>;
-  back: () => Promise<undefined>;
-  forward: () => Promise<undefined>;
-}
