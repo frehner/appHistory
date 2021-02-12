@@ -76,6 +76,7 @@ describe("updateCurrentEntry", () => {
     const newEntries = appHistory.entries;
 
     expect(oldEntries).not.toEqual(newEntries);
+    expect(oldEntries.length).toEqual(newEntries.length);
     expect(newEntries.length).toEqual(1);
     expect(newEntries[0].state).toEqual(newState);
   });
