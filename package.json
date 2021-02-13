@@ -1,7 +1,7 @@
 {
   "name": "apphistory",
   "version": "0.0.1",
-  "description": "",
+  "description": "A polyfill for the appHistory proposal. Not ready for production",
   "main": "index.js",
   "scripts": {
     "test": "jest",
@@ -9,7 +9,7 @@
     "build": "rollup -c rollup.config.js"
   },
   "author": "Anthony Frehner",
-  "license": "ISC",
+  "license": "MIT",
   "devDependencies": {
     "@babel/core": "^7.12.16",
     "@babel/preset-env": "^7.12.13",
