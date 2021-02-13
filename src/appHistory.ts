@@ -5,22 +5,34 @@ export class AppHistory {
   entries: Readonly<AppHistoryEntry[]>;
 
   updateCurrentEntry(options: AppHistoryEntryOptions): void {
-    const newState =
-      options?.state !== undefined ? options.state : this.currentEntry.state;
-    const newUrl = options?.url ?? this.currentEntry.url;
-    const newEntry = this.createNewEntry({ newUrl, newState });
-    this.currentEntry = newEntry;
-    const [replacedEntry, ...restEntries] = this.entries;
-    this.entries = Object.freeze([newEntry, ...restEntries]);
+    this.currentEntry = this.createNewEntry(options, true);
+    const [, ...restEntries] = this.entries;
+    this.entries = Object.freeze([this.currentEntry, ...restEntries]);
   }
 
-  private createNewEntry({
-    newUrl,
-    newState,
-  }: {
-    newUrl?: string;
-    newState?: any | null;
-  }): Readonly<AppHistoryEntry> {
+  async pushNewEntry(
+    options?: AppHistoryEntryOptions
+  ): Promise<any | undefined> {
+    this.currentEntry = this.createNewEntry(options, false);
+    this.entries = Object.freeze([this.currentEntry, ...this.entries]);
+    return undefined;
+  }
+
+  private createNewEntry(
+    options: AppHistoryEntryOptions,
+    usePreviousStateIfNecessary: boolean
+  ): Readonly<AppHistoryEntry> {
+    let newState = null;
+    if (options?.state === undefined) {
+      newState = usePreviousStateIfNecessary
+        ? this.currentEntry?.state ?? null
+        : null;
+    } else {
+      newState = options.state;
+    }
+
+    const newUrl = options?.url ?? this.currentEntry.url;
+
     return Object.freeze({
       key: fakeRandomId(),
       url: newUrl,
@@ -33,7 +45,7 @@ export class AppHistory {
   }
 
   constructor() {
-    this.currentEntry = this.createNewEntry({ newUrl: "test" });
+    this.currentEntry = this.createNewEntry({ url: "test" }, false);
     this.entries = Object.freeze([this.currentEntry]);
   }
 }
