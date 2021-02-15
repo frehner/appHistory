@@ -1,20 +1,18 @@
 import { fakeRandomId } from "./helpers";
 
 export class AppHistory {
-  currentEntry: Readonly<AppHistoryEntry>;
+  current: Readonly<AppHistoryEntry>;
   entries: Readonly<AppHistoryEntry[]>;
 
-  updateCurrentEntry(options: AppHistoryEntryOptions): void {
-    this.currentEntry = this.createNewEntry(options, true);
+  update(options: AppHistoryEntryOptions): void {
+    this.current = this.createNewEntry(options, true);
     const [, ...restEntries] = this.entries;
-    this.entries = Object.freeze([this.currentEntry, ...restEntries]);
+    this.entries = Object.freeze([this.current, ...restEntries]);
   }
 
-  async pushNewEntry(
-    options?: AppHistoryEntryOptions
-  ): Promise<any | undefined> {
-    this.currentEntry = this.createNewEntry(options, false);
-    this.entries = Object.freeze([this.currentEntry, ...this.entries]);
+  async push(options?: AppHistoryEntryOptions): Promise<any | undefined> {
+    this.current = this.createNewEntry(options, false);
+    this.entries = Object.freeze([this.current, ...this.entries]);
     return undefined;
   }
 
@@ -25,13 +23,13 @@ export class AppHistory {
     let newState = null;
     if (options?.state === undefined) {
       newState = usePreviousStateIfNecessary
-        ? this.currentEntry?.state ?? null
+        ? this.current?.state ?? null
         : null;
     } else {
       newState = options.state;
     }
 
-    const newUrl = options?.url ?? this.currentEntry.url;
+    const newUrl = options?.url ?? this.current.url;
 
     return Object.freeze({
       key: fakeRandomId(),
@@ -40,13 +38,13 @@ export class AppHistory {
       sameDocument: true,
       onnavigateto: () => {},
       onupcomingnavigate: () => {},
-      oncurrententrychange: () => {},
+      oncurrentchange: () => {},
     });
   }
 
   constructor() {
-    this.currentEntry = this.createNewEntry({ url: "test" }, false);
-    this.entries = Object.freeze([this.currentEntry]);
+    this.current = this.createNewEntry({ url: "test" }, false);
+    this.entries = Object.freeze([this.current]);
   }
 }
 
@@ -57,7 +55,7 @@ interface AppHistoryEntry {
   sameDocument: boolean;
   onnavigateto: Readonly<EventHandlerNonNull>;
   onupcomingnavigate: Readonly<EventHandlerNonNull>;
-  oncurrententrychange: Readonly<EventHandlerNonNull>;
+  oncurrentchange: Readonly<EventHandlerNonNull>;
 }
 
 export type AppHistoryEntryKey = string;
