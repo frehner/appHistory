@@ -148,4 +148,17 @@ describe("push", () => {
     expect(appHistory.current.state).not.toEqual(oldEntry.state);
     expect(appHistory.entries.length).toBe(2);
   });
+
+  it("should add to the end of the entries stack", async () => {
+    const appHistory = new AppHistory();
+    await appHistory.push({ url: "/temp1" });
+    await appHistory.push({ url: "/temp2" });
+
+    // this test will have to change when I actually put in a sane url in the constructor
+    expect(appHistory.entries.map((entry) => entry.url)).toEqual([
+      "TODO FIX DEFAULT URL",
+      "/temp1",
+      "/temp2",
+    ]);
+  });
 });

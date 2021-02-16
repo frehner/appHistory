@@ -4,6 +4,11 @@ export class AppHistory {
   current: Readonly<AppHistoryEntry>;
   entries: Readonly<AppHistoryEntry[]>;
 
+  constructor() {
+    this.current = this.createNewEntry({ url: "TODO FIX DEFAULT URL" }, false);
+    this.entries = Object.freeze([this.current]);
+  }
+
   update(options: AppHistoryEntryOptions): void {
     this.current = this.createNewEntry(options, true);
     const [, ...restEntries] = this.entries;
@@ -11,10 +16,28 @@ export class AppHistory {
   }
 
   async push(options?: AppHistoryEntryOptions): Promise<any | undefined> {
+    const oldCurrent = this.current;
+    const oldCurrentIndex = this.entries.findIndex(
+      (entry) => entry.key === oldCurrent.key
+    );
     this.current = this.createNewEntry(options, false);
-    this.entries = Object.freeze([this.current, ...this.entries]);
+    this.entries = Object.freeze([
+      ...this.entries.slice(0, oldCurrentIndex + 1),
+      this.current,
+    ]);
     return undefined;
   }
+
+  // a basic beginning but still needs some work.
+  // async navigateTo(key: AppHistoryEntryKey): Promise<any | undefined> {
+  //   const entryIndex = this.entries.findIndex((entry) => entry.key === key);
+
+  //   if (entryIndex === -1) {
+  //     throw new DOMException("InvalidStateError");
+  //   }
+
+  //   this.current = this.entries[entryIndex];
+  // }
 
   private createNewEntry(
     options: AppHistoryEntryOptions,
@@ -40,11 +63,6 @@ export class AppHistory {
       onupcomingnavigate: () => {},
       oncurrentchange: () => {},
     });
-  }
-
-  constructor() {
-    this.current = this.createNewEntry({ url: "test" }, false);
-    this.entries = Object.freeze([this.current]);
   }
 }
 
