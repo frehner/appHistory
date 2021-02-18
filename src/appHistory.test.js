@@ -162,3 +162,93 @@ describe("push", () => {
     ]);
   });
 });
+
+describe("addEventListener", () => {
+  describe("navigate", () => {
+    it("should add an event listener", async () => {
+      const appHistory = new AppHistory();
+      let navigateCalled = false;
+      appHistory.addEventListener("navigate", () => {
+        navigateCalled = true;
+      });
+
+      await appHistory.push();
+
+      expect(navigateCalled).toBe(true);
+    });
+
+    it("should call navigate with an AppHistoryEventNavigateEvent object and current should update", async () => {
+      const appHistory = new AppHistory();
+      let navEventObject;
+      appHistory.addEventListener("navigate", (evt) => {
+        navEventObject = evt;
+      });
+
+      const newUrl = "/newUrl";
+      await appHistory.push({ url: newUrl });
+
+      expect(navEventObject instanceof CustomEvent).toBe(true);
+      expect(navEventObject.detail.destination.url).toBe(newUrl);
+      expect(appHistory.current.url).toBe(newUrl);
+    });
+
+    it("should throw a DOMException 'AbortError' if event.preventDefault() is called", async () => {
+      const appHistory = new AppHistory();
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.preventDefault();
+      });
+
+      const newUrl = "/newUrl";
+
+      await expect(appHistory.push({ url: newUrl })).rejects.toThrow(
+        DOMException
+      );
+      expect(appHistory.current.url).not.toEqual(newUrl);
+    });
+
+    describe("respondWith", () => {
+      it("should work if the promise resolves successfully", async () => {
+        const appHistory = new AppHistory();
+        appHistory.addEventListener("navigate", (evt) => {
+          evt.detail.respondWith(
+            new Promise((resolve) => {
+              setTimeout(() => {
+                resolve();
+              }, 5);
+            })
+          );
+        });
+
+        const newUrl = "/newUrl";
+        await appHistory.push({ url: newUrl });
+
+        expect(appHistory.current.url).toBe(newUrl);
+      });
+
+      it("should not navigate if the promise rejects", async () => {
+        const appHistory = new AppHistory();
+
+        let upcomingEntry;
+        appHistory.addEventListener("navigate", (evt) => {
+          upcomingEntry = evt.detail.destination;
+          evt.detail.respondWith(
+            new Promise((_, reject) => {
+              setTimeout(() => {
+                reject();
+              }, 5);
+            })
+          );
+        });
+
+        const previousCurrent = appHistory.current;
+
+        const newUrl = "/newUrl";
+        await appHistory.push({ url: newUrl });
+
+        expect(appHistory.current.url).not.toBe(newUrl);
+        expect(appHistory.current).toEqual(previousCurrent);
+        expect(appHistory.current).not.toEqual(upcomingEntry);
+      });
+    });
+  });
+});
