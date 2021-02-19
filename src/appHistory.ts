@@ -51,29 +51,27 @@ export class AppHistory {
     destinationEntry: AppHistoryEntry,
     info?: any
   ) {
-    const eventsSent: AppHistoryNavigateEvent[] = [];
     const respondWithResponses: Array<Promise<undefined> | undefined> = [];
 
-    this.navigateEventListeners.forEach((listener) => {
-      const navigateEvent = new AppHistoryNavigateEvent({
-        cancelable: true,
-        detail: {
-          userInitiated: true,
-          sameOrigin: true,
-          hashChange: true,
-          destination: destinationEntry,
-          info,
-          respondWith: (respondWithPromise) => {
-            respondWithResponses.push(respondWithPromise);
-          },
+    const navigateEvent = new AppHistoryNavigateEvent({
+      cancelable: true,
+      detail: {
+        userInitiated: true,
+        sameOrigin: true,
+        hashChange: true,
+        destination: destinationEntry,
+        info,
+        respondWith: (respondWithPromise) => {
+          respondWithResponses.push(respondWithPromise);
         },
-      });
+      },
+    });
 
-      eventsSent.push(navigateEvent);
+    this.navigateEventListeners.forEach((listener) => {
       listener.call(this, navigateEvent);
     });
 
-    if (eventsSent.some((evt) => evt.defaultPrevented)) {
+    if (navigateEvent.defaultPrevented) {
       // if any handler called event.preventDefault()
       throw new DOMException("AbortError");
     }
