@@ -9,7 +9,9 @@ export class AppHistory {
 
   current: Readonly<AppHistoryEntry>;
   entries: Readonly<AppHistoryEntry[]>;
-  private navigateEventListeners: Array<() => void>;
+  private navigateEventListeners: Array<
+    (event: AppHistoryNavigateEvent) => void
+  >;
 
   update(options: AppHistoryEntryOptions): void {
     this.current = this.createNewEntry(options, true);
@@ -23,7 +25,10 @@ export class AppHistory {
     return;
   }
 
-  addEventListener(eventName: "navigate", callback: () => void): void {
+  addEventListener(
+    eventName: "navigate",
+    callback: (event: AppHistoryNavigateEvent) => void
+  ): void {
     if (eventName === "navigate") {
       if (!this.navigateEventListeners.includes(callback)) {
         this.navigateEventListeners.push(callback);
@@ -61,7 +66,7 @@ export class AppHistory {
         hashChange: true,
         destination: destinationEntry,
         info,
-        respondWith: (respondWithPromise) => {
+        respondWith: (respondWithPromise: Promise<any> | undefined) => {
           respondWithResponses.push(respondWithPromise);
         },
       },
@@ -97,8 +102,8 @@ export class AppHistory {
   }
 
   private createNewEntry(
-    options: AppHistoryEntryOptions,
-    usePreviousStateIfNecessary: boolean
+    options?: AppHistoryEntryOptions,
+    usePreviousStateIfNecessary: boolean = false
   ): Readonly<AppHistoryEntry> {
     let newState = null;
     if (options?.state === undefined) {
@@ -141,18 +146,18 @@ type AppHistoryEntryOptions = {
   navigateInfo?: any;
 };
 
-interface AppHistoryNavigateEventInit extends CustomEventInit {
+interface AppHistoryNavigateEventDetail {
   readonly userInitiated: boolean;
   readonly sameOrigin: boolean;
   readonly hashChange: boolean;
   readonly destination: AppHistoryEntry;
   readonly formData?: null;
   readonly info: any;
-  respondWith: (T) => Promise<undefined>;
+  respondWith: () => Promise<undefined>;
 }
 
-class AppHistoryNavigateEvent extends CustomEvent<AppHistoryNavigateEventInit> {
-  constructor(customEventInit) {
+class AppHistoryNavigateEvent extends CustomEvent<AppHistoryNavigateEventDetail> {
+  constructor(customEventInit: CustomEventInit) {
     super("AppHistoryNavigateEvent", customEventInit);
   }
 }

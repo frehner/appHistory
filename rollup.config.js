@@ -6,9 +6,11 @@ export default {
     dir: "./build/",
     format: "es",
   },
+  external: [/@babel\/runtime/],
   plugins: [
     babel({
       extensions: [".ts", ".js"],
+      babelHelpers: "bundled",
     }),
   ],
 };
