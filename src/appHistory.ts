@@ -28,6 +28,7 @@ export class AppHistory {
       return;
     } catch (error) {
       if (error instanceof DOMException) {
+        // ensure that error is passed through to the client
         throw error;
       }
       return;
@@ -48,7 +49,6 @@ export class AppHistory {
     throw new Error("appHistory does not listen for that event at this time");
   }
 
-  // a basic beginning but still needs some work.
   async navigateTo(key: AppHistoryEntryKey): Promise<undefined> {
     const entryIndex = this.entries.findIndex((entry) => entry.key === key);
     if (entryIndex === -1) {
@@ -58,6 +58,36 @@ export class AppHistory {
 
     await this.sendNavigateEvent(navigatedEntry);
     this.current = navigatedEntry;
+    return;
+  }
+
+  async back(): Promise<undefined> {
+    const entryIndex = this.entries.findIndex(
+      (entry) => entry.key === this.current.key
+    );
+    if (entryIndex === 0) {
+      // cannot go back if we're at the first entry
+      throw new DOMException("InvalidStateError");
+    }
+
+    const backEntry = this.entries[entryIndex - 1];
+    await this.sendNavigateEvent(backEntry);
+    this.current = backEntry;
+    return;
+  }
+
+  async forward(): Promise<undefined> {
+    const entryIndex = this.entries.findIndex(
+      (entry) => entry.key === this.current.key
+    );
+    if (entryIndex === this.entries.length - 1) {
+      // cannot go forward if we're at the last entry
+      throw new DOMException("InvalidStateError");
+    }
+
+    const backEntry = this.entries[entryIndex + 1];
+    await this.sendNavigateEvent(backEntry);
+    this.current = backEntry;
     return;
   }
 

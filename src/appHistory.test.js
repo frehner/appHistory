@@ -287,3 +287,62 @@ describe("navigateTo", () => {
     expect(appHistory.current).not.toEqual(appHistory.entries[2]);
   });
 });
+
+describe("back", () => {
+  it("should throw an exception if it cannot go back further", async () => {
+    const appHistory = new AppHistory();
+
+    await expect(appHistory.back()).rejects.toThrow(DOMException);
+  });
+
+  it("should update current but not add/remove anything from entries", async () => {
+    const appHistory = new AppHistory();
+    const firstUrl = appHistory.current.url;
+
+    await appHistory.push({ url: "/test1" });
+    await appHistory.push({ url: "/test2" });
+
+    expect(appHistory.current.url).toBe("/test2");
+
+    await appHistory.back();
+    expect(appHistory.current.url).toBe("/test1");
+    expect(appHistory.entries.length).toBe(3);
+    expect(appHistory.current).toEqual(appHistory.entries[1]);
+
+    await appHistory.back();
+    expect(appHistory.current.url).toBe(firstUrl);
+    expect(appHistory.entries.length).toBe(3);
+    expect(appHistory.current).toEqual(appHistory.entries[0]);
+  });
+});
+
+describe("forward", () => {
+  it("should throw an exception if it cannot go forward because it's the last one", async () => {
+    const appHistory = new AppHistory();
+
+    await expect(appHistory.forward()).rejects.toThrow(DOMException);
+  });
+
+  it("should update current but not add/remove anything from entries", async () => {
+    const appHistory = new AppHistory();
+    const firstCurrent = appHistory.current;
+
+    await appHistory.push({ url: "/test1" });
+    await appHistory.push({ url: "/test2" });
+
+    expect(appHistory.current.url).toBe("/test2");
+
+    await appHistory.navigateTo(firstCurrent.key);
+    expect(appHistory.current).toBe(firstCurrent);
+
+    await appHistory.forward();
+    expect(appHistory.current.url).toBe("/test1");
+    expect(appHistory.entries.length).toBe(3);
+    expect(appHistory.current).toEqual(appHistory.entries[1]);
+
+    await appHistory.forward();
+    expect(appHistory.current.url).toBe("/test2");
+    expect(appHistory.entries.length).toBe(3);
+    expect(appHistory.current).toEqual(appHistory.entries[2]);
+  });
+});
