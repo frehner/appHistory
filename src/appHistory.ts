@@ -20,10 +20,18 @@ export class AppHistory {
     this.entries = Object.freeze([this.current, ...restEntries]);
   }
 
-  async push(options?: AppHistoryEntryOptions): Promise<any | undefined> {
+  async push(options?: AppHistoryEntryOptions): Promise<undefined> {
     const upcomingEntry = this.createNewEntry(options, false);
-    await this.sendNavigateEvent(upcomingEntry, options?.navigateInfo);
-    return;
+    try {
+      await this.sendNavigateEvent(upcomingEntry, options?.navigateInfo);
+      this.updateCurrentAndEntries(upcomingEntry);
+      return;
+    } catch (error) {
+      if (error instanceof DOMException) {
+        throw error;
+      }
+      return;
+    }
   }
 
   addEventListener(
@@ -41,23 +49,23 @@ export class AppHistory {
   }
 
   // a basic beginning but still needs some work.
-  // async navigateTo(key: AppHistoryEntryKey): Promise<any | undefined> {
-  //   const entryIndex = this.entries.findIndex((entry) => entry.key === key);
-  //   if (entryIndex === -1) {
-  //     throw new DOMException("InvalidStateError");
-  //   }
-  //   try {
-  //     await this.sendNavigateEvent()
-  //     this.current = this.entries[entryIndex];
-  //   } catch (error) {
-  //   }
-  // }
+  async navigateTo(key: AppHistoryEntryKey): Promise<undefined> {
+    const entryIndex = this.entries.findIndex((entry) => entry.key === key);
+    if (entryIndex === -1) {
+      throw new DOMException("InvalidStateError");
+    }
+    const navigatedEntry = this.entries[entryIndex];
+
+    await this.sendNavigateEvent(navigatedEntry);
+    this.current = navigatedEntry;
+    return;
+  }
 
   private async sendNavigateEvent(
     destinationEntry: AppHistoryEntry,
     info?: any
   ) {
-    const respondWithResponses: Array<Promise<undefined> | undefined> = [];
+    const respondWithResponses: Array<Promise<undefined>> = [];
 
     const navigateEvent = new AppHistoryNavigateEvent({
       cancelable: true,
@@ -67,7 +75,7 @@ export class AppHistory {
         hashChange: true,
         destination: destinationEntry,
         info,
-        respondWith: (respondWithPromise: Promise<any> | undefined) => {
+        respondWith: (respondWithPromise: Promise<undefined>): void => {
           respondWithResponses.push(respondWithPromise);
         },
       },
@@ -82,24 +90,8 @@ export class AppHistory {
       throw new DOMException("AbortError");
     }
 
-    try {
-      await Promise.all(respondWithResponses);
-    } catch (error) {
-      // one of the respondWith promises rejected, which means we cancel the navigation
-      return;
-    }
-
-    // things are good and we can update the current entry and the entries list
-    const oldCurrent = this.current;
-    const oldCurrentIndex = this.entries.findIndex(
-      (entry) => entry.key === oldCurrent.key
-    );
-
-    this.current = destinationEntry;
-    this.entries = Object.freeze([
-      ...this.entries.slice(0, oldCurrentIndex + 1),
-      this.current,
-    ]);
+    await Promise.all(respondWithResponses);
+    return;
   }
 
   private createNewEntry(
@@ -126,6 +118,20 @@ export class AppHistory {
       onupcomingnavigate: () => {},
       oncurrentchange: () => {},
     });
+  }
+
+  private updateCurrentAndEntries(newCurrent: AppHistoryEntry): void {
+    // things are good and we can update the current entry and the entries list
+    const oldCurrent = this.current;
+    const oldCurrentIndex = this.entries.findIndex(
+      (entry) => entry.key === oldCurrent.key
+    );
+
+    this.current = newCurrent;
+    this.entries = Object.freeze([
+      ...this.entries.slice(0, oldCurrentIndex + 1),
+      this.current,
+    ]);
   }
 }
 

@@ -161,6 +161,28 @@ describe("push", () => {
       "/temp2",
     ]);
   });
+
+  it("should remove future entries if the current entry is not the last one in the entry stack", async () => {
+    const appHistory = new AppHistory();
+    const goToEntryKey = appHistory.current.key;
+    await appHistory.push({ url: "/temp1" });
+    await appHistory.push({ url: "/temp2" });
+
+    expect(appHistory.entries.length).toBe(3);
+
+    await appHistory.navigateTo(goToEntryKey);
+
+    expect(appHistory.entries.length).toBe(3);
+
+    await appHistory.push({ url: "/temp3" });
+
+    expect(appHistory.entries.length).toBe(2);
+    expect(appHistory.current.url).toBe("/temp3");
+    expect(appHistory.entries.map((entry) => entry.url)).toEqual([
+      "TODO FIX DEFAULT URL",
+      "/temp3",
+    ]);
+  });
 });
 
 describe("addEventListener", () => {
@@ -210,13 +232,7 @@ describe("addEventListener", () => {
       it("should work if the promise resolves successfully", async () => {
         const appHistory = new AppHistory();
         appHistory.addEventListener("navigate", (evt) => {
-          evt.detail.respondWith(
-            new Promise((resolve) => {
-              setTimeout(() => {
-                resolve();
-              }, 5);
-            })
-          );
+          evt.detail.respondWith(Promise.resolve());
         });
 
         const newUrl = "/newUrl";
@@ -231,13 +247,7 @@ describe("addEventListener", () => {
         let upcomingEntry;
         appHistory.addEventListener("navigate", (evt) => {
           upcomingEntry = evt.detail.destination;
-          evt.detail.respondWith(
-            new Promise((_, reject) => {
-              setTimeout(() => {
-                reject();
-              }, 5);
-            })
-          );
+          evt.detail.respondWith(Promise.reject());
         });
 
         const previousCurrent = appHistory.current;
@@ -250,5 +260,30 @@ describe("addEventListener", () => {
         expect(appHistory.current).not.toEqual(upcomingEntry);
       });
     });
+  });
+});
+
+describe("navigateTo", () => {
+  it("should throw an exception if the key is no longer in the entries list", async () => {
+    const appHistory = new AppHistory();
+
+    await expect(appHistory.navigateTo("non-existent-key")).rejects.toThrow(
+      DOMException
+    );
+  });
+
+  it("should update current but not add/remove anything from entries", async () => {
+    const appHistory = new AppHistory();
+
+    await appHistory.push({ url: "/test1" });
+    const oldKey = appHistory.current.key;
+    await appHistory.push({ url: "/test2" });
+
+    expect(appHistory.current.url).toBe("/test2");
+
+    await appHistory.navigateTo(oldKey);
+    expect(appHistory.current.url).toBe("/test1");
+    expect(appHistory.entries.length).toBe(3);
+    expect(appHistory.current).not.toEqual(appHistory.entries[2]);
   });
 });
