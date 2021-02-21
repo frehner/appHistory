@@ -228,6 +228,41 @@ describe("addEventListener", () => {
       expect(appHistory.current.url).not.toEqual(newUrl);
     });
 
+    xit("should include the navigateInfo passed from 'update'", () => {
+      // currently skipping this test because of unclear spec requirements
+      const appHistory = new AppHistory();
+
+      let expectedInfo;
+
+      appHistory.addEventListener("navigate", (evt) => {
+        expectedInfo = evt.detail.info;
+      });
+
+      const navigateInfo = "test";
+
+      appHistory.update({ url: "/temp", navigateInfo });
+
+      expect(expectedInfo).toBeTruthy();
+      expect(expectedInfo).toEqual(navigateInfo);
+    });
+
+    it("should include the navigateInfo passed from 'push'", async () => {
+      const appHistory = new AppHistory();
+
+      let expectedInfo;
+
+      appHistory.addEventListener("navigate", (evt) => {
+        expectedInfo = evt.detail.info;
+      });
+
+      const navigateInfo = "test";
+
+      await appHistory.push({ navigateInfo });
+
+      expect(expectedInfo).toBeTruthy();
+      expect(expectedInfo).toEqual(navigateInfo);
+    });
+
     describe("respondWith", () => {
       it("should work if the promise resolves successfully", async () => {
         const appHistory = new AppHistory();
@@ -268,7 +303,7 @@ describe("navigateTo", () => {
     const appHistory = new AppHistory();
 
     await expect(appHistory.navigateTo("non-existent-key")).rejects.toThrow(
-      DOMException
+      new DOMException("InvalidStateError")
     );
   });
 
@@ -292,7 +327,9 @@ describe("back", () => {
   it("should throw an exception if it cannot go back further", async () => {
     const appHistory = new AppHistory();
 
-    await expect(appHistory.back()).rejects.toThrow(DOMException);
+    await expect(appHistory.back()).rejects.toThrow(
+      new DOMException("InvalidStateError")
+    );
   });
 
   it("should update current but not add/remove anything from entries", async () => {
@@ -320,7 +357,9 @@ describe("forward", () => {
   it("should throw an exception if it cannot go forward because it's the last one", async () => {
     const appHistory = new AppHistory();
 
-    await expect(appHistory.forward()).rejects.toThrow(DOMException);
+    await expect(appHistory.forward()).rejects.toThrow(
+      new DOMException("InvalidStateError")
+    );
   });
 
   it("should update current but not add/remove anything from entries", async () => {
