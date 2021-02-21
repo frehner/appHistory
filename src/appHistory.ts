@@ -1,4 +1,5 @@
-import { fakeRandomId } from "./helpers";
+// @ts-ignore
+import { fakeRandomId } from "./helpers.ts";
 
 export class AppHistory {
   constructor() {
