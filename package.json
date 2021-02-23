@@ -2,13 +2,13 @@
   "name": "apphistory",
   "version": "0.0.1",
   "description": "A polyfill for the appHistory proposal. Not ready for production",
-  "main": "index.js",
+  "main": "build/appHistory.js",
   "types": "build/types/appHistory.d.ts",
   "scripts": {
     "dev": "npm run test:watch & npm run ts:watch",
     "build": "npm run ts && npm run rollup",
     "rollup": "rollup -c rollup.config.js",
-    "test": "jest",
+    "test": "jest --coverage",
     "test:watch": "jest --watch",
     "ts": "tsc --emitDeclarationOnly",
     "ts:watch": "tsc --noEmit --watch --incremental"

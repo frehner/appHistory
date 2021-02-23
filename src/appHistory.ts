@@ -15,9 +15,19 @@ export class AppHistory {
   >;
 
   update(options: AppHistoryEntryOptions): void {
-    this.current = this.createNewEntry(options, true);
-    const [, ...restEntries] = this.entries;
-    this.entries = Object.freeze([this.current, ...restEntries]);
+    // TODO: reuse the key from the current entry, which is also important for key-based navigation like navigateTo
+    const oldCurrentIndex = this.entries.findIndex(
+      (entry) => entry.key === this.current.key
+    );
+    this.current = Object.freeze(this.createNewEntry(options, true));
+    this.entries = Object.freeze(
+      this.entries.map((entry, entryIndex) => {
+        if (entryIndex === oldCurrentIndex) {
+          return this.current;
+        }
+        return entry;
+      })
+    );
   }
 
   async push(options?: AppHistoryEntryOptions): Promise<undefined> {
@@ -145,8 +155,8 @@ export class AppHistory {
       state: newState,
       sameDocument: true,
       onnavigateto: () => {},
-      onupcomingnavigate: () => {},
-      oncurrentchange: () => {},
+      onnavigatefrom: () => {},
+      ondispose: () => {},
     });
   }
 
@@ -171,8 +181,8 @@ interface AppHistoryEntry {
   state: any | null;
   sameDocument: boolean;
   onnavigateto: Readonly<EventHandlerNonNull>;
-  onupcomingnavigate: Readonly<EventHandlerNonNull>;
-  oncurrentchange: Readonly<EventHandlerNonNull>;
+  onnavigatefrom: Readonly<EventHandlerNonNull>;
+  ondispose: Readonly<EventHandlerNonNull>;
 }
 
 export type AppHistoryEntryKey = string;

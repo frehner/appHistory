@@ -91,6 +91,49 @@ describe("update", () => {
     expect(newEntries.length).toEqual(1);
     expect(newEntries[0].state).toEqual(newState);
   });
+
+  it("should update the current entry, no matter the location of current in the entry list", async () => {
+    const appHistory = new AppHistory();
+
+    // add some entries
+    await appHistory.push({ url: "/test1" });
+    const test1 = appHistory.current;
+    await appHistory.push({ url: "/test2" });
+
+    await appHistory.back();
+    expect(test1).toEqual(appHistory.current);
+
+    appHistory.update({ url: "/newTest1" });
+
+    expect(appHistory.entries.map((entry) => entry.url)).toEqual([
+      "TODO FIX DEFAULT URL",
+      "/newTest1",
+      "/test2",
+    ]);
+  });
+
+  it.skip("should update the current entry with passed in options, but keep the remaining properties of the current entry", async () => {
+    // will have to refactor to get this test to pass
+    const appHistory = new AppHistory();
+    const key1 = appHistory.current.key;
+
+    // add some entries
+    await appHistory.push({ url: "/test1" });
+    const key2 = appHistory.current.key;
+    await appHistory.push({ url: "/test2" });
+    const key3 = appHistory.current.key;
+
+    await appHistory.back();
+    expect(key2).toEqual(appHistory.current.key);
+
+    appHistory.update({ url: "/newTest1" });
+
+    expect(appHistory.entries.map((entry) => entry.key)).toEqual([
+      key1,
+      key2,
+      key3,
+    ]);
+  });
 });
 
 describe("push", () => {
@@ -185,7 +228,7 @@ describe("push", () => {
   });
 });
 
-describe("addEventListener", () => {
+describe("appHistory eventListeners", () => {
   describe("navigate", () => {
     it("should add an event listener", async () => {
       const appHistory = new AppHistory();
@@ -228,7 +271,7 @@ describe("addEventListener", () => {
       expect(appHistory.current.url).not.toEqual(newUrl);
     });
 
-    xit("should include the navigateInfo passed from 'update'", () => {
+    it.skip("should include the navigateInfo passed from 'update'", () => {
       // currently skipping this test because of unclear spec requirements
       const appHistory = new AppHistory();
 
@@ -296,6 +339,34 @@ describe("addEventListener", () => {
       });
     });
   });
+
+  describe("currentchange", () => {
+    it.todo(
+      "should fire the currentchange event https://github.com/WICG/app-history#current-entry-change-monitoring "
+    );
+  });
+
+  describe("other listeners", () => {
+    it("should throw an error when a listener is added that we dont' support yet", () => {
+      // not sure if throwing here will be a long-term thing, but for now it signals that I haven't implemented it yet
+      const appHistory = new AppHistory();
+      expect(() =>
+        appHistory.addEventListener("notsupported", () => {})
+      ).toThrow();
+    });
+  });
+});
+
+describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per-entry-events ", () => {
+  describe("navigateto", () => {
+    it.todo("fires the navigateto event when the entry becomes current");
+  });
+  describe("navigatefrom", () => {
+    it.todo("fires the navigatefrom event when the entry becomes current");
+  });
+  describe("dispose", () => {
+    it.todo("fires the dispose event when the entry becomes current");
+  });
 });
 
 describe("navigateTo", () => {
@@ -321,6 +392,12 @@ describe("navigateTo", () => {
     expect(appHistory.entries.length).toBe(3);
     expect(appHistory.current).not.toEqual(appHistory.entries[2]);
   });
+});
+
+describe("events order", () => {
+  it.todo(
+    "should fire the events in order https://github.com/WICG/app-history#complete-event-sequence "
+  );
 });
 
 describe("back", () => {
