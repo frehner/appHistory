@@ -3,7 +3,7 @@ import { fakeRandomId } from "./helpers.ts";
 
 export class AppHistory {
   constructor() {
-    this.current = this.createNewEntry({ url: "TODO FIX DEFAULT URL" }, false);
+    this.current = new AppHistoryEntry({ url: "TODO FIX DEFAULT URL" });
     this.entries = Object.freeze([this.current]);
     this.navigateEventListeners = [];
   }
@@ -15,23 +15,11 @@ export class AppHistory {
   >;
 
   update(options: AppHistoryEntryOptions): void {
-    // TODO: reuse the key from the current entry, which is also important for key-based navigation like navigateTo
-    const oldCurrentIndex = this.entries.findIndex(
-      (entry) => entry.key === this.current.key
-    );
-    this.current = Object.freeze(this.createNewEntry(options, true));
-    this.entries = Object.freeze(
-      this.entries.map((entry, entryIndex) => {
-        if (entryIndex === oldCurrentIndex) {
-          return this.current;
-        }
-        return entry;
-      })
-    );
+    this.current.__updateEntry(options);
   }
 
   async push(options?: AppHistoryEntryOptions): Promise<undefined> {
-    const upcomingEntry = this.createNewEntry(options, false);
+    const upcomingEntry = new AppHistoryEntry(options, this.current);
     try {
       await this.sendNavigateEvent(upcomingEntry, options?.navigateInfo);
       this.updateCurrentAndEntries(upcomingEntry);
@@ -134,32 +122,6 @@ export class AppHistory {
     return;
   }
 
-  private createNewEntry(
-    options?: AppHistoryEntryOptions,
-    usePreviousStateIfNecessary: boolean = false
-  ): Readonly<AppHistoryEntry> {
-    let newState = null;
-    if (options?.state === undefined) {
-      newState = usePreviousStateIfNecessary
-        ? this.current?.state ?? null
-        : null;
-    } else {
-      newState = options.state;
-    }
-
-    const newUrl = options?.url ?? this.current.url;
-
-    return Object.freeze({
-      key: fakeRandomId(),
-      url: newUrl,
-      state: newState,
-      sameDocument: true,
-      onnavigateto: () => {},
-      onnavigatefrom: () => {},
-      ondispose: () => {},
-    });
-  }
-
   private updateCurrentAndEntries(newCurrent: AppHistoryEntry): void {
     // things are good and we can update the current entry and the entries list
     const oldCurrent = this.current;
@@ -183,6 +145,38 @@ interface AppHistoryEntry {
   onnavigateto: Readonly<EventHandlerNonNull>;
   onnavigatefrom: Readonly<EventHandlerNonNull>;
   ondispose: Readonly<EventHandlerNonNull>;
+}
+
+class AppHistoryEntry {
+  constructor(
+    options?: AppHistoryEntryOptions,
+    previousEntry?: AppHistoryEntry
+  ) {
+    this.state = null;
+    if (options?.state) {
+      this.state = options.state;
+    }
+    this.key = fakeRandomId();
+    this.url = options?.url ?? previousEntry?.url ?? "";
+    this.sameDocument = true;
+  }
+
+  key: AppHistoryEntryKey;
+  url: string;
+  state: any | null;
+  sameDocument: boolean;
+
+  /** DO NOT USE; use appHistory.update() instead */
+  __updateEntry(options: AppHistoryEntryOptions): void {
+    // appHistory.update() calls this function but it is not part of the actual public API for an AppHistoryEntry
+    if (options?.state !== undefined) {
+      // appHistory.update({state: null}) should allow you to null out the state
+      this.state = options.state;
+    }
+    if (options?.url) {
+      this.url = options.url;
+    }
+  }
 }
 
 export type AppHistoryEntryKey = string;

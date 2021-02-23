@@ -1,6 +1,6 @@
 import { AppHistory } from "./appHistory";
 
-describe("constructor", () => {
+describe("appHistory constructor", () => {
   it("should initialize with a current and entries", () => {
     const appHistory = new AppHistory();
 
@@ -86,9 +86,8 @@ describe("update", () => {
 
     const newEntries = appHistory.entries;
 
-    expect(oldEntries).not.toEqual(newEntries);
-    expect(oldEntries.length).toEqual(newEntries.length);
-    expect(newEntries.length).toEqual(1);
+    expect(oldEntries).toBe(newEntries);
+    expect(oldEntries.length).toBe(newEntries.length);
     expect(newEntries[0].state).toEqual(newState);
   });
 
@@ -112,8 +111,7 @@ describe("update", () => {
     ]);
   });
 
-  it.skip("should update the current entry with passed in options, but keep the remaining properties of the current entry", async () => {
-    // will have to refactor to get this test to pass
+  it("should update the current entry with passed in options, but keep the remaining properties of the current entry", async () => {
     const appHistory = new AppHistory();
     const key1 = appHistory.current.key;
 
@@ -133,6 +131,7 @@ describe("update", () => {
       key2,
       key3,
     ]);
+    expect(appHistory.current.url).toBe("/newTest1");
   });
 });
 
