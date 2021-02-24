@@ -137,16 +137,6 @@ export class AppHistory {
   }
 }
 
-interface AppHistoryEntry {
-  key: AppHistoryEntryKey;
-  url: string;
-  state: any | null;
-  sameDocument: boolean;
-  onnavigateto: Readonly<EventHandlerNonNull>;
-  onnavigatefrom: Readonly<EventHandlerNonNull>;
-  ondispose: Readonly<EventHandlerNonNull>;
-}
-
 class AppHistoryEntry {
   constructor(
     options?: AppHistoryEntryOptions,
@@ -187,7 +177,7 @@ type AppHistoryEntryOptions = {
   navigateInfo?: any;
 };
 
-interface AppHistoryNavigateEventDetail {
+class AppHistoryNavigateEvent extends CustomEvent<{
   readonly userInitiated: boolean;
   readonly sameOrigin: boolean;
   readonly hashChange: boolean;
@@ -195,9 +185,7 @@ interface AppHistoryNavigateEventDetail {
   readonly formData?: null;
   readonly info: any;
   respondWith: () => Promise<undefined>;
-}
-
-class AppHistoryNavigateEvent extends CustomEvent<AppHistoryNavigateEventDetail> {
+}> {
   constructor(customEventInit: CustomEventInit) {
     super("AppHistoryNavigateEvent", customEventInit);
   }
