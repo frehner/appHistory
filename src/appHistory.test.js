@@ -358,13 +358,128 @@ describe("appHistory eventListeners", () => {
 
 describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per-entry-events ", () => {
   describe("navigateto", () => {
-    it.todo("fires the navigateto event when the entry becomes current");
+    it("fires when the entry becomes current with 'appHistory.navigateto()'", async () => {
+      const appHistory = new AppHistory();
+      let navigateCalled = false;
+
+      const oldCurrent = appHistory.current;
+      oldCurrent.addEventListener("navigateto", () => {
+        navigateCalled = true;
+      });
+
+      await appHistory.push();
+      await appHistory.navigateTo(oldCurrent.key);
+
+      expect(navigateCalled).toBe(true);
+    });
+
+    it("fires when the entry becomes current with 'appHistory.back()'", async () => {
+      const appHistory = new AppHistory();
+      let navigateCalled = false;
+
+      const oldCurrent = appHistory.current;
+      oldCurrent.addEventListener("navigateto", () => {
+        navigateCalled = true;
+      });
+
+      await appHistory.push();
+      await appHistory.back();
+
+      expect(navigateCalled).toBe(true);
+    });
+
+    it("fires when the entry becomes current with 'appHistory.forward()'", async () => {
+      const appHistory = new AppHistory();
+
+      await appHistory.push();
+
+      let navigateCalled = false;
+      const oldCurrent = appHistory.current;
+      oldCurrent.addEventListener("navigateto", () => {
+        navigateCalled = true;
+      });
+
+      await appHistory.back();
+      await appHistory.forward();
+
+      expect(navigateCalled).toBe(true);
+    });
   });
   describe("navigatefrom", () => {
-    it.todo("fires the navigatefrom event when the entry becomes current");
+    it("fires when the entry leaves current with 'appHistory.navigateto()'", async () => {
+      const appHistory = new AppHistory();
+      const oldCurrent = appHistory.current;
+      await appHistory.push();
+
+      let navigateCalled = false;
+      appHistory.current.addEventListener("navigatefrom", () => {
+        navigateCalled = true;
+      });
+
+      await appHistory.navigateTo(oldCurrent.key);
+
+      expect(navigateCalled).toBe(true);
+    });
+
+    it("fires when the entry leaves current with 'appHistory.push()'", async () => {
+      const appHistory = new AppHistory();
+
+      let navigateCalled = false;
+      appHistory.current.addEventListener("navigatefrom", () => {
+        navigateCalled = true;
+      });
+
+      await appHistory.push();
+
+      expect(navigateCalled).toBe(true);
+    });
+
+    it("fires when the entry leaves current with 'appHistory.back()'", async () => {
+      const appHistory = new AppHistory();
+      await appHistory.push();
+
+      let navigateCalled = false;
+      appHistory.current.addEventListener("navigatefrom", () => {
+        navigateCalled = true;
+      });
+
+      await appHistory.back();
+
+      expect(navigateCalled).toBe(true);
+    });
+
+    it("fires when the entry leaves current with 'appHistory.forward()'", async () => {
+      const appHistory = new AppHistory();
+
+      await appHistory.push();
+      await appHistory.back();
+
+      let navigateCalled = false;
+      appHistory.current.addEventListener("navigatefrom", () => {
+        navigateCalled = true;
+      });
+
+      await appHistory.forward();
+
+      expect(navigateCalled).toBe(true);
+    });
   });
   describe("dispose", () => {
-    it.todo("fires the dispose event when the entry becomes current");
+    it("fires when a entry is no longer reachable/in the entries list", async () => {
+      const appHistory = new AppHistory();
+
+      await appHistory.push();
+
+      let disposeCalled = false;
+      appHistory.current.addEventListener("dispose", () => {
+        disposeCalled = true;
+      });
+
+      await appHistory.back();
+      await appHistory.push();
+
+      expect(disposeCalled).toBe(true);
+    });
   });
 });
 

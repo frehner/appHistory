@@ -4,12 +4,12 @@ import { fakeRandomId } from "./helpers.ts";
 export class AppHistory {
   constructor() {
     this.current = new AppHistoryEntry({ url: "TODO FIX DEFAULT URL" });
-    this.entries = Object.freeze([this.current]);
+    this.entries = [this.current];
     this.navigateEventListeners = [];
   }
 
-  current: Readonly<AppHistoryEntry>;
-  entries: Readonly<AppHistoryEntry[]>;
+  current: AppHistoryEntry;
+  entries: AppHistoryEntry[];
   private navigateEventListeners: Array<
     (event: AppHistoryNavigateEvent) => void
   >;
@@ -55,7 +55,9 @@ export class AppHistory {
     const navigatedEntry = this.entries[entryIndex];
 
     await this.sendNavigateEvent(navigatedEntry);
+    this.current.__fireEventListenersForEvent("navigatefrom");
     this.current = navigatedEntry;
+    this.current.__fireEventListenersForEvent("navigateto");
     return;
   }
 
@@ -70,7 +72,9 @@ export class AppHistory {
 
     const backEntry = this.entries[entryIndex - 1];
     await this.sendNavigateEvent(backEntry);
+    this.current.__fireEventListenersForEvent("navigatefrom");
     this.current = backEntry;
+    this.current.__fireEventListenersForEvent("navigateto");
     return;
   }
 
@@ -85,7 +89,9 @@ export class AppHistory {
 
     const backEntry = this.entries[entryIndex + 1];
     await this.sendNavigateEvent(backEntry);
+    this.current.__fireEventListenersForEvent("navigatefrom");
     this.current = backEntry;
+    this.current.__fireEventListenersForEvent("navigateto");
     return;
   }
 
@@ -129,11 +135,17 @@ export class AppHistory {
       (entry) => entry.key === oldCurrent.key
     );
 
+    oldCurrent.__fireEventListenersForEvent("navigatefrom");
+
+    this.entries.slice(oldCurrentIndex + 1).forEach((disposedEntry) => {
+      disposedEntry.__fireEventListenersForEvent("dispose");
+    });
+
     this.current = newCurrent;
-    this.entries = Object.freeze([
+    this.entries = [
       ...this.entries.slice(0, oldCurrentIndex + 1),
       this.current,
-    ]);
+    ];
   }
 }
 
@@ -156,6 +168,22 @@ class AppHistoryEntry {
   state: any | null;
   sameDocument: boolean;
 
+  private eventListeners: AppHistoryEntryEventListeners = {
+    navigateto: [],
+    navigatefrom: [],
+    dispose: [],
+  };
+
+  addEventListener(
+    eventName: keyof AppHistoryEntryEventListeners,
+    callback: (event: CustomEvent) => void
+  ): void {
+    if (!this.eventListeners[eventName].includes(callback)) {
+      this.eventListeners[eventName].push(callback);
+    }
+    return;
+  }
+
   /** DO NOT USE; use appHistory.update() instead */
   __updateEntry(options: AppHistoryEntryOptions): void {
     // appHistory.update() calls this function but it is not part of the actual public API for an AppHistoryEntry
@@ -167,7 +195,22 @@ class AppHistoryEntry {
       this.url = options.url;
     }
   }
+
+  /** DO NOT USE; for internal use only */
+  __fireEventListenersForEvent(
+    eventName: keyof AppHistoryEntryEventListeners
+  ): void {
+    this.eventListeners[eventName].map((listener) => {
+      listener(new CustomEvent(eventName));
+    });
+  }
 }
+
+type AppHistoryEntryEventListeners = {
+  navigateto: Array<(event: CustomEvent) => void>;
+  navigatefrom: Array<(event: CustomEvent) => void>;
+  dispose: Array<(event: CustomEvent) => void>;
+};
 
 export type AppHistoryEntryKey = string;
 
