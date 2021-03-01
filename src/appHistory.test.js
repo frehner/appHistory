@@ -148,6 +148,18 @@ describe("push", () => {
     expect(appHistory.entries.length).toBe(2);
   });
 
+  it("should take in a url and options as two params", async () => {
+    const appHistory = new AppHistory();
+    await appHistory.push("/newUrl", { state: "newState" });
+
+    expect(appHistory.current.url).toBe("/newUrl");
+    expect(appHistory.current.state).toBe("newState");
+  });
+
+  it.todo(
+    "should take in a callback function that can return AppHistoryEntryFullOptions. Skipping for now because of unclear spec"
+  );
+
   it("only state: should overwrite the state and copy the previous URL", async () => {
     const appHistory = new AppHistory();
     const oldEntry = appHistory.current;

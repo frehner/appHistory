@@ -18,11 +18,61 @@ export class AppHistory {
     this.current.__updateEntry(options);
   }
 
-  async push(options?: AppHistoryEntryOptions): Promise<undefined> {
+  async push(callback?: () => AppHistoryEntryFullOptions): Promise<undefined>;
+  async push(fullOptions?: AppHistoryEntryFullOptions): Promise<undefined>;
+  async push(
+    url?: string,
+    options?: AppHistoryEntryOptions
+  ): Promise<undefined>;
+  async push(
+    param1?:
+      | string
+      | (() => AppHistoryEntryFullOptions)
+      | AppHistoryEntryFullOptions,
+    param2?: AppHistoryEntryOptions
+  ) {
+    let options: AppHistoryEntryFullOptions | undefined;
+    switch (typeof param1) {
+      case "string": {
+        if (param2 && typeof param2 === "object") {
+          options = param2;
+          options.url = param1;
+        } else {
+          options = { url: param1 };
+        }
+        break;
+      }
+
+      case "object": {
+        if (param1) {
+          options = param1;
+        }
+        break;
+      }
+
+      default:
+        break;
+    }
+
     const upcomingEntry = new AppHistoryEntry(options, this.current);
     try {
       await this.sendNavigateEvent(upcomingEntry, options?.navigateInfo);
-      this.updateCurrentAndEntries(upcomingEntry);
+      const oldCurrent = this.current;
+      const oldCurrentIndex = this.entries.findIndex(
+        (entry) => entry.key === oldCurrent.key
+      );
+
+      oldCurrent.__fireEventListenersForEvent("navigatefrom");
+
+      this.entries.slice(oldCurrentIndex + 1).forEach((disposedEntry) => {
+        disposedEntry.__fireEventListenersForEvent("dispose");
+      });
+
+      this.current = upcomingEntry;
+      this.entries = [
+        ...this.entries.slice(0, oldCurrentIndex + 1),
+        this.current,
+      ];
       return;
     } catch (error) {
       if (error instanceof DOMException) {
@@ -127,31 +177,11 @@ export class AppHistory {
     await Promise.all(respondWithResponses);
     return;
   }
-
-  private updateCurrentAndEntries(newCurrent: AppHistoryEntry): void {
-    // things are good and we can update the current entry and the entries list
-    const oldCurrent = this.current;
-    const oldCurrentIndex = this.entries.findIndex(
-      (entry) => entry.key === oldCurrent.key
-    );
-
-    oldCurrent.__fireEventListenersForEvent("navigatefrom");
-
-    this.entries.slice(oldCurrentIndex + 1).forEach((disposedEntry) => {
-      disposedEntry.__fireEventListenersForEvent("dispose");
-    });
-
-    this.current = newCurrent;
-    this.entries = [
-      ...this.entries.slice(0, oldCurrentIndex + 1),
-      this.current,
-    ];
-  }
 }
 
 class AppHistoryEntry {
   constructor(
-    options?: AppHistoryEntryOptions,
+    options?: AppHistoryEntryFullOptions,
     previousEntry?: AppHistoryEntry
   ) {
     this.state = null;
@@ -185,7 +215,7 @@ class AppHistoryEntry {
   }
 
   /** DO NOT USE; use appHistory.update() instead */
-  __updateEntry(options: AppHistoryEntryOptions): void {
+  __updateEntry(options: AppHistoryEntryFullOptions): void {
     // appHistory.update() calls this function but it is not part of the actual public API for an AppHistoryEntry
     if (options?.state !== undefined) {
       // appHistory.update({state: null}) should allow you to null out the state
@@ -214,11 +244,14 @@ type AppHistoryEntryEventListeners = {
 
 export type AppHistoryEntryKey = string;
 
-type AppHistoryEntryOptions = {
-  url?: string;
+interface AppHistoryEntryOptions {
   state?: any | null;
   navigateInfo?: any;
-};
+}
+
+interface AppHistoryEntryFullOptions extends AppHistoryEntryOptions {
+  url?: string;
+}
 
 class AppHistoryNavigateEvent extends CustomEvent<{
   readonly userInitiated: boolean;
