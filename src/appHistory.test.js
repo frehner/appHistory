@@ -12,14 +12,14 @@ describe("appHistory constructor", () => {
 });
 
 describe("update", () => {
-  it("only url: updates url but not the state", () => {
+  it("only url: updates url but not the state", async () => {
     const appHistory = new AppHistory();
-    appHistory.update({ state: "test" });
+    await appHistory.update({ state: "test" });
 
     const { url: oldUrl, state: oldState } = appHistory.current;
 
     const updatedUrl = "/newUrl";
-    appHistory.update({ url: updatedUrl });
+    await appHistory.update({ url: updatedUrl });
 
     const { url: newUrl, state: newState } = appHistory.current;
 
@@ -28,13 +28,13 @@ describe("update", () => {
     expect(newUrl).toEqual(updatedUrl);
   });
 
-  it("only state: updates state but not the url", () => {
+  it("only state: updates state but not the url", async () => {
     const appHistory = new AppHistory();
 
     const { url: oldUrl, state: oldState } = appHistory.current;
 
     const updatedState = "newState";
-    appHistory.update({ state: updatedState });
+    await appHistory.update({ state: updatedState });
 
     const { url: newUrl, state: newState } = appHistory.current;
 
@@ -43,14 +43,14 @@ describe("update", () => {
     expect(newState).toEqual(updatedState);
   });
 
-  it("can null out the state", () => {
+  it("can null out the state", async () => {
     const appHistory = new AppHistory();
-    appHistory.update({ state: "before" });
+    await appHistory.update({ state: "before" });
 
     const { state: oldState } = appHistory.current;
 
     const updatedState = null;
-    appHistory.update({ state: updatedState });
+    await appHistory.update({ state: updatedState });
 
     const { state: newState } = appHistory.current;
 
@@ -58,14 +58,14 @@ describe("update", () => {
     expect(newState).toEqual(updatedState);
   });
 
-  it("can update both state and url at the same time", () => {
+  it("can update both state and url at the same time", async () => {
     const appHistory = new AppHistory();
 
     const { url: oldUrl, state: oldState } = appHistory.current;
 
     const updatedState = "newState";
     const updatedUrl = "/newUrl";
-    appHistory.update({ state: updatedState, url: updatedUrl });
+    await appHistory.update({ state: updatedState, url: updatedUrl });
 
     const { url: newUrl, state: newState } = appHistory.current;
 
@@ -76,13 +76,13 @@ describe("update", () => {
     expect(newState).toEqual(updatedState);
   });
 
-  it("does not add a new entry to the entries list", () => {
+  it("does not add a new entry to the entries list", async () => {
     const appHistory = new AppHistory();
 
     const oldEntries = appHistory.entries;
 
     const newState = "newState";
-    appHistory.update({ state: newState });
+    await appHistory.update({ state: newState });
 
     const newEntries = appHistory.entries;
 
@@ -102,7 +102,7 @@ describe("update", () => {
     await appHistory.back();
     expect(test1).toEqual(appHistory.current);
 
-    appHistory.update({ url: "/newTest1" });
+    await appHistory.update({ url: "/newTest1" });
 
     expect(appHistory.entries.map((entry) => entry.url)).toEqual([
       "TODO FIX DEFAULT URL",
@@ -124,7 +124,7 @@ describe("update", () => {
     await appHistory.back();
     expect(key2).toEqual(appHistory.current.key);
 
-    appHistory.update({ url: "/newTest1" });
+    await appHistory.update({ url: "/newTest1" });
 
     expect(appHistory.entries.map((entry) => entry.key)).toEqual([
       key1,
@@ -138,7 +138,7 @@ describe("update", () => {
 describe("push", () => {
   it("no options: adds an entry with the same url but null-ed out state", async () => {
     const appHistory = new AppHistory();
-    appHistory.update({ state: "test" });
+    await appHistory.update({ state: "test" });
     const oldEntry = appHistory.current;
 
     await appHistory.push();
@@ -175,7 +175,7 @@ describe("push", () => {
 
   it("only url: should set a new url and null out the state", async () => {
     const appHistory = new AppHistory();
-    appHistory.update({ state: "test" });
+    await appHistory.update({ state: "test" });
     const oldEntry = appHistory.current;
 
     const newUrl = "newUrl";
@@ -282,7 +282,7 @@ describe("appHistory eventListeners", () => {
       expect(appHistory.current.url).not.toEqual(newUrl);
     });
 
-    it.skip("should include the navigateInfo passed from 'update'", () => {
+    it("should include the navigateInfo passed from 'update'", async () => {
       // currently skipping this test because of unclear spec requirements
       const appHistory = new AppHistory();
 
@@ -294,7 +294,7 @@ describe("appHistory eventListeners", () => {
 
       const navigateInfo = "test";
 
-      appHistory.update({ url: "/temp", navigateInfo });
+      await appHistory.update({ url: "/temp", navigateInfo });
 
       expect(expectedInfo).toBeTruthy();
       expect(expectedInfo).toEqual(navigateInfo);

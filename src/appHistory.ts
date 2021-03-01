@@ -14,23 +14,10 @@ export class AppHistory {
     (event: AppHistoryNavigateEvent) => void
   >;
 
-  update(options: AppHistoryEntryOptions): void {
-    this.current.__updateEntry(options);
-  }
-
-  async push(callback?: () => AppHistoryEntryFullOptions): Promise<undefined>;
-  async push(fullOptions?: AppHistoryEntryFullOptions): Promise<undefined>;
-  async push(
-    url?: string,
-    options?: AppHistoryEntryOptions
-  ): Promise<undefined>;
-  async push(
-    param1?:
-      | string
-      | (() => AppHistoryEntryFullOptions)
-      | AppHistoryEntryFullOptions,
+  private getOptionsFromParams(
+    param1?: UpdatePushParam1Types,
     param2?: AppHistoryEntryOptions
-  ) {
+  ): AppHistoryEntryFullOptions | undefined {
     let options: AppHistoryEntryFullOptions | undefined;
     switch (typeof param1) {
       case "string": {
@@ -50,9 +37,52 @@ export class AppHistory {
         break;
       }
 
+      // TODO: add case for 'function'
+      // waiting on spec clarity to implement though
+
       default:
         break;
     }
+
+    return options;
+  }
+
+  async update(callback?: () => AppHistoryEntryFullOptions): Promise<undefined>;
+  async update(fullOptions?: AppHistoryEntryFullOptions): Promise<undefined>;
+  async update(
+    url?: string,
+    options?: AppHistoryEntryOptions
+  ): Promise<undefined>;
+  async update(
+    param1?: UpdatePushParam1Types,
+    param2?: AppHistoryEntryOptions
+  ) {
+    // TODO: potentially roll back the update if the navigate event is cancelled or promise is rejected.
+    // waiting on spec clarification before implementing it though
+
+    const options = this.getOptionsFromParams(param1, param2);
+    try {
+      // TODO: can update() be called with no parameters? If so, then what happens? see https://github.com/WICG/app-history/issues/52
+      this.current.__updateEntry(options ?? {});
+      this.sendNavigateEvent(this.current, options?.navigateInfo);
+    } catch (error) {
+      if (error instanceof DOMException) {
+        // ensure that error is passed through to the client
+        throw error;
+      }
+      return;
+    }
+    return;
+  }
+
+  async push(callback?: () => AppHistoryEntryFullOptions): Promise<undefined>;
+  async push(fullOptions?: AppHistoryEntryFullOptions): Promise<undefined>;
+  async push(
+    url?: string,
+    options?: AppHistoryEntryOptions
+  ): Promise<undefined>;
+  async push(param1?: UpdatePushParam1Types, param2?: AppHistoryEntryOptions) {
+    const options = this.getOptionsFromParams(param1, param2);
 
     const upcomingEntry = new AppHistoryEntry(options, this.current);
     try {
@@ -241,6 +271,11 @@ type AppHistoryEntryEventListeners = {
   navigatefrom: Array<(event: CustomEvent) => void>;
   dispose: Array<(event: CustomEvent) => void>;
 };
+
+type UpdatePushParam1Types =
+  | string
+  | (() => AppHistoryEntryFullOptions)
+  | AppHistoryEntryFullOptions;
 
 export type AppHistoryEntryKey = string;
 
