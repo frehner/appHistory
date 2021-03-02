@@ -317,6 +317,25 @@ describe("appHistory eventListeners", () => {
       expect(expectedInfo).toEqual(navigateInfo);
     });
 
+    it("should handle if a listener throws and continue to call other listeners", async () => {
+      const appHistory = new AppHistory();
+
+      const listenerEvents = [];
+
+      appHistory.addEventListener("navigate", () => {
+        listenerEvents.push("1");
+        throw new Error("test");
+      });
+
+      appHistory.addEventListener("navigate", () => {
+        listenerEvents.push("2");
+      });
+
+      await appHistory.push();
+
+      expect(listenerEvents).toEqual(["1", "2"]);
+    });
+
     describe("respondWith", () => {
       it("should work if the promise resolves successfully", async () => {
         const appHistory = new AppHistory();
@@ -352,9 +371,60 @@ describe("appHistory eventListeners", () => {
   });
 
   describe("currentchange", () => {
-    it.todo(
-      "should fire the currentchange event https://github.com/WICG/app-history#current-entry-change-monitoring "
-    );
+    it("should fire the currentchange event for push()", async () => {
+      // https://github.com/WICG/app-history#current-entry-change-monitoring
+
+      const appHistory = new AppHistory();
+
+      let currentEvent = null;
+
+      appHistory.addEventListener("curentchange", (event) => {
+        currentEvent = event;
+      });
+
+      await appHistory.push();
+
+      expect(currentEvent).toBeTruthy();
+      expect(currentEvent.detail.startTime).toBeLessThan(
+        currentEvent.timeStamp
+      );
+    });
+
+    it("should fire the currentchange event for update()", async () => {
+      const appHistory = new AppHistory();
+
+      let currentEvent = null;
+
+      appHistory.addEventListener("curentchange", (event) => {
+        currentEvent = event;
+      });
+
+      await appHistory.update({ state: "newState" });
+
+      expect(currentEvent).toBeTruthy();
+      expect(currentEvent.detail.startTime).toBeLessThan(
+        currentEvent.timeStamp
+      );
+    });
+
+    it("should handle if a listener throws and continue to call other listeners", async () => {
+      const appHistory = new AppHistory();
+
+      const listenerEvents = [];
+
+      appHistory.addEventListener("curentchange", () => {
+        listenerEvents.push("1");
+        throw new Error("test");
+      });
+
+      appHistory.addEventListener("curentchange", () => {
+        listenerEvents.push("2");
+      });
+
+      await appHistory.push();
+
+      expect(listenerEvents).toEqual(["1", "2"]);
+    });
   });
 
   describe("other listeners", () => {
@@ -521,9 +591,49 @@ describe("navigateTo", () => {
 });
 
 describe("events order", () => {
-  it.todo(
-    "should fire the events in order https://github.com/WICG/app-history#complete-event-sequence "
-  );
+  it.skip("should fire the events in order for push()", async () => {
+    // https://github.com/WICG/app-history#complete-event-sequence
+    const eventsList = [];
+
+    const appHistory = new AppHistory();
+
+    // add an entry that will be disposed of later
+    await appHistory.push();
+
+    // not needed for appHistory.push()?
+    // appHistory.current.addEventListener("navigateto", () => {
+    //   eventsList.push("current.navigateto");
+    // });
+
+    appHistory.current.addEventListener("dispose", () => {
+      eventsList.push("entry.dispose");
+    });
+
+    await appHistory.back();
+
+    appHistory.current.addEventListener("navigatefrom", () => {
+      eventsList.push("entry.navigatefrom");
+    });
+
+    appHistory.addEventListener("navigate", () => {
+      eventsList.push("navigate");
+    });
+
+    appHistory.addEventListener("curentchange", () => {
+      eventsList.push("currentchange");
+    });
+
+    await appHistory.push();
+
+    expect(eventsList).toEqual([
+      "navigate",
+      "entry.navigatefrom",
+      "currentchange",
+      "entry.dispose",
+      "entry.finish",
+      "navigatefinish",
+    ]);
+  });
 });
 
 describe("back", () => {

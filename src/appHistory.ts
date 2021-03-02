@@ -5,14 +5,14 @@ export class AppHistory {
   constructor() {
     this.current = new AppHistoryEntry({ url: "TODO FIX DEFAULT URL" });
     this.entries = [this.current];
-    this.navigateEventListeners = [];
   }
 
   current: AppHistoryEntry;
   entries: AppHistoryEntry[];
-  private navigateEventListeners: Array<
-    (event: AppHistoryNavigateEvent) => void
-  >;
+  private eventListeners: AppHistoryEventListeners = {
+    navigate: [],
+    curentchange: [],
+  };
 
   private getOptionsFromParams(
     param1?: UpdatePushParam1Types,
@@ -60,11 +60,15 @@ export class AppHistory {
     // TODO: potentially roll back the update if the navigate event is cancelled or promise is rejected.
     // waiting on spec clarification before implementing it though
 
+    // used in currentchange event
+    const startTime = performance.now();
+
     const options = this.getOptionsFromParams(param1, param2);
     try {
       // TODO: can update() be called with no parameters? If so, then what happens? see https://github.com/WICG/app-history/issues/52
       this.current.__updateEntry(options ?? {});
       this.sendNavigateEvent(this.current, options?.navigateInfo);
+      this.sendCurrentChangeEvent(startTime);
     } catch (error) {
       if (error instanceof DOMException) {
         // ensure that error is passed through to the client
@@ -82,6 +86,9 @@ export class AppHistory {
     options?: AppHistoryEntryOptions
   ): Promise<undefined>;
   async push(param1?: UpdatePushParam1Types, param2?: AppHistoryEntryOptions) {
+    // used in the currentchange event
+    const startTime = performance.now();
+
     const options = this.getOptionsFromParams(param1, param2);
 
     const upcomingEntry = new AppHistoryEntry(options, this.current);
@@ -93,6 +100,8 @@ export class AppHistory {
       );
 
       oldCurrent.__fireEventListenersForEvent("navigatefrom");
+
+      this.sendCurrentChangeEvent(startTime);
 
       this.entries.slice(oldCurrentIndex + 1).forEach((disposedEntry) => {
         disposedEntry.__fireEventListenersForEvent("dispose");
@@ -114,12 +123,12 @@ export class AppHistory {
   }
 
   addEventListener(
-    eventName: "navigate",
+    eventName: keyof AppHistoryEventListeners,
     callback: (event: AppHistoryNavigateEvent) => void
   ): void {
-    if (eventName === "navigate") {
-      if (!this.navigateEventListeners.includes(callback)) {
-        this.navigateEventListeners.push(callback);
+    if (eventName === "navigate" || eventName === "curentchange") {
+      if (!this.eventListeners[eventName].includes(callback)) {
+        this.eventListeners[eventName].push(callback);
       }
       return;
     }
@@ -195,8 +204,10 @@ export class AppHistory {
       },
     });
 
-    this.navigateEventListeners.forEach((listener) => {
-      listener.call(this, navigateEvent);
+    this.eventListeners.navigate.forEach((listener) => {
+      try {
+        listener.call(this, navigateEvent);
+      } catch (error) {}
     });
 
     if (navigateEvent.defaultPrevented) {
@@ -206,6 +217,17 @@ export class AppHistory {
 
     await Promise.all(respondWithResponses);
     return;
+  }
+
+  private sendCurrentChangeEvent(startTime: DOMHighResTimeStamp): void {
+    this.eventListeners.curentchange.forEach((listener) => {
+      try {
+        listener.call(
+          this,
+          new AppHistoryCurrentChangeEvent({ detail: { startTime } })
+        );
+      } catch (error) {}
+    });
   }
 }
 
@@ -266,6 +288,11 @@ class AppHistoryEntry {
   }
 }
 
+type AppHistoryEventListeners = {
+  navigate: Array<(event: AppHistoryNavigateEvent) => void>;
+  curentchange: Array<(event: CustomEvent) => void>;
+};
+
 type AppHistoryEntryEventListeners = {
   navigateto: Array<(event: CustomEvent) => void>;
   navigatefrom: Array<(event: CustomEvent) => void>;
@@ -299,5 +326,13 @@ class AppHistoryNavigateEvent extends CustomEvent<{
 }> {
   constructor(customEventInit: CustomEventInit) {
     super("AppHistoryNavigateEvent", customEventInit);
+  }
+}
+
+class AppHistoryCurrentChangeEvent extends CustomEvent<{
+  startTime: DOMHighResTimeStamp;
+}> {
+  constructor(customEventInit: CustomEventInit) {
+    super("AppHistoryCurrentChangeEvent", customEventInit);
   }
 }
