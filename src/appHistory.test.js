@@ -336,6 +336,8 @@ describe("appHistory eventListeners", () => {
       expect(listenerEvents).toEqual(["1", "2"]);
     });
 
+    it.todo("things changed in https://github.com/WICG/app-history/pull/56");
+
     describe("respondWith", () => {
       it("should work if the promise resolves successfully", async () => {
         const appHistory = new AppHistory();
@@ -697,4 +699,6 @@ describe("forward", () => {
     expect(appHistory.entries.length).toBe(3);
     expect(appHistory.current).toEqual(appHistory.entries[2]);
   });
+
+  it.todo("updates in https://github.com/WICG/app-history/pull/55/files");
 });
