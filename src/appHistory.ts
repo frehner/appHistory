@@ -4,11 +4,16 @@ import { fakeRandomId } from "./helpers.ts";
 export class AppHistory {
   constructor() {
     this.current = new AppHistoryEntry({ url: "TODO FIX DEFAULT URL" });
+    this.current.__updateEntry(undefined, 0);
     this.entries = [this.current];
+    this.canGoBack = false;
+    this.canGoForward = false;
   }
 
   current: AppHistoryEntry;
   entries: AppHistoryEntry[];
+  canGoBack: boolean;
+  canGoForward: boolean;
   private eventListeners: AppHistoryEventListeners = {
     navigate: [],
     curentchange: [],
@@ -104,14 +109,21 @@ export class AppHistory {
       this.sendCurrentChangeEvent(startTime);
 
       this.entries.slice(oldCurrentIndex + 1).forEach((disposedEntry) => {
+        disposedEntry.__updateEntry(undefined, -1);
         disposedEntry.__fireEventListenersForEvent("dispose");
       });
+
+      this.canGoBack = true;
+      this.canGoForward = false;
 
       this.current = upcomingEntry;
       this.entries = [
         ...this.entries.slice(0, oldCurrentIndex + 1),
         this.current,
-      ];
+      ].map((entry, entryIndex) => {
+        entry.__updateEntry(undefined, entryIndex);
+        return entry;
+      });
       return;
     } catch (error) {
       if (error instanceof DOMException) {
@@ -143,10 +155,7 @@ export class AppHistory {
     }
     const navigatedEntry = this.entries[entryIndex];
 
-    await this.sendNavigateEvent(navigatedEntry);
-    this.current.__fireEventListenersForEvent("navigatefrom");
-    this.current = navigatedEntry;
-    this.current.__fireEventListenersForEvent("navigateto");
+    await this.changeCurrentEntry(navigatedEntry);
     return;
   }
 
@@ -160,10 +169,7 @@ export class AppHistory {
     }
 
     const backEntry = this.entries[entryIndex - 1];
-    await this.sendNavigateEvent(backEntry);
-    this.current.__fireEventListenersForEvent("navigatefrom");
-    this.current = backEntry;
-    this.current.__fireEventListenersForEvent("navigateto");
+    await this.changeCurrentEntry(backEntry);
     return;
   }
 
@@ -176,12 +182,19 @@ export class AppHistory {
       throw new DOMException("InvalidStateError");
     }
 
-    const backEntry = this.entries[entryIndex + 1];
-    await this.sendNavigateEvent(backEntry);
-    this.current.__fireEventListenersForEvent("navigatefrom");
-    this.current = backEntry;
-    this.current.__fireEventListenersForEvent("navigateto");
+    const forwardEntry = this.entries[entryIndex + 1];
+    await this.changeCurrentEntry(forwardEntry);
     return;
+  }
+
+  private async changeCurrentEntry(newCurrent: AppHistoryEntry) {
+    await this.sendNavigateEvent(newCurrent);
+    this.current.__fireEventListenersForEvent("navigatefrom");
+    this.current = newCurrent;
+    this.current.__fireEventListenersForEvent("navigateto");
+
+    this.canGoBack = this.current.index > 0;
+    this.canGoForward = this.current.index < this.entries.length - 1;
   }
 
   private async sendNavigateEvent(
@@ -243,12 +256,14 @@ class AppHistoryEntry {
     this.key = fakeRandomId();
     this.url = options?.url ?? previousEntry?.url ?? "";
     this.sameDocument = true;
+    this.index = -1;
   }
 
   key: AppHistoryEntryKey;
   url: string;
   state: any | null;
   sameDocument: boolean;
+  index: number;
 
   private eventListeners: AppHistoryEntryEventListeners = {
     navigateto: [],
@@ -267,7 +282,7 @@ class AppHistoryEntry {
   }
 
   /** DO NOT USE; use appHistory.update() instead */
-  __updateEntry(options: AppHistoryEntryFullOptions): void {
+  __updateEntry(options?: AppHistoryEntryFullOptions, newIndex?: number): void {
     // appHistory.update() calls this function but it is not part of the actual public API for an AppHistoryEntry
     if (options?.state !== undefined) {
       // appHistory.update({state: null}) should allow you to null out the state
@@ -276,14 +291,24 @@ class AppHistoryEntry {
     if (options?.url) {
       this.url = options.url;
     }
+
+    if (typeof newIndex === "number") {
+      this.index = newIndex;
+    }
   }
 
   /** DO NOT USE; for internal use only */
   __fireEventListenersForEvent(
     eventName: keyof AppHistoryEntryEventListeners
   ): void {
+    const newEvent = new AppHistoryEntryEvent(
+      { detail: { target: this } },
+      eventName
+    );
     this.eventListeners[eventName].map((listener) => {
-      listener(new CustomEvent(eventName));
+      try {
+        listener(newEvent);
+      } catch (error) {}
     });
   }
 }
@@ -334,5 +359,14 @@ class AppHistoryCurrentChangeEvent extends CustomEvent<{
 }> {
   constructor(customEventInit: CustomEventInit) {
     super("AppHistoryCurrentChangeEvent", customEventInit);
+  }
+}
+
+class AppHistoryEntryEvent extends CustomEvent<{ target: AppHistoryEntry }> {
+  constructor(
+    customEventInit: CustomEventInit,
+    eventName: keyof AppHistoryEntryEventListeners
+  ) {
+    super(eventName, customEventInit);
   }
 }

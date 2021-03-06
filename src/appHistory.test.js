@@ -8,6 +8,8 @@ describe("appHistory constructor", () => {
     expect(appHistory.current).not.toBeNull();
     expect(appHistory.entries.length).toBe(1);
     expect(appHistory.entries[0]).toEqual(appHistory.current);
+    expect(appHistory.canGoBack).toBe(false);
+    expect(appHistory.canGoForward).toBe(false);
   });
 });
 
@@ -237,20 +239,55 @@ describe("push", () => {
       "/temp3",
     ]);
   });
+
+  it("should always have an up-to-date index to indicate the location in the entires list", async () => {
+    const appHistory = new AppHistory();
+
+    expect(appHistory.current.index).toBe(0);
+
+    await appHistory.push();
+
+    expect(appHistory.current.index).toBe(1);
+
+    await appHistory.push();
+
+    expect(appHistory.current.index).toBe(2);
+
+    expect(appHistory.entries.map((entry) => entry.index)).toEqual([0, 1, 2]);
+
+    await appHistory.back();
+
+    expect(appHistory.current.index).toBe(1);
+
+    await appHistory.back();
+
+    expect(appHistory.current.index).toBe(0);
+    expect(appHistory.entries.map((entry) => entry.index)).toEqual([0, 1, 2]);
+
+    await appHistory.push();
+    expect(appHistory.current.index).toBe(1);
+    expect(appHistory.entries.map((entry) => entry.index)).toEqual([0, 1]);
+  });
+
+  it("should update appHistory canGoBack and canGoForward", async () => {
+    const appHistory = new AppHistory();
+    await appHistory.push();
+
+    expect(appHistory.canGoBack).toBe(true);
+    expect(appHistory.canGoForward).toBe(false);
+  });
 });
 
 describe("appHistory eventListeners", () => {
   describe("navigate", () => {
-    it("should add an event listener", async () => {
+    it("should add an event listener", async (done) => {
       const appHistory = new AppHistory();
-      let navigateCalled = false;
+
       appHistory.addEventListener("navigate", () => {
-        navigateCalled = true;
+        done();
       });
 
       await appHistory.push();
-
-      expect(navigateCalled).toBe(true);
     });
 
     it("should call navigate with an AppHistoryEventNavigateEvent object and current should update", async () => {
@@ -442,127 +479,117 @@ describe("appHistory eventListeners", () => {
 
 describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per-entry-events ", () => {
   describe("navigateto", () => {
-    it("fires when the entry becomes current with 'appHistory.navigateto()'", async () => {
+    it("fires when the entry becomes current with 'appHistory.navigateto()'", async (done) => {
       const appHistory = new AppHistory();
-      let navigateCalled = false;
 
       const oldCurrent = appHistory.current;
       oldCurrent.addEventListener("navigateto", () => {
-        navigateCalled = true;
+        done();
       });
 
       await appHistory.push();
       await appHistory.navigateTo(oldCurrent.key);
-
-      expect(navigateCalled).toBe(true);
     });
 
-    it("fires when the entry becomes current with 'appHistory.back()'", async () => {
+    it("fires when the entry becomes current with 'appHistory.back()'", async (done) => {
       const appHistory = new AppHistory();
-      let navigateCalled = false;
 
       const oldCurrent = appHistory.current;
       oldCurrent.addEventListener("navigateto", () => {
-        navigateCalled = true;
+        done();
       });
 
       await appHistory.push();
       await appHistory.back();
-
-      expect(navigateCalled).toBe(true);
     });
 
-    it("fires when the entry becomes current with 'appHistory.forward()'", async () => {
+    it("fires when the entry becomes current with 'appHistory.forward()'", async (done) => {
       const appHistory = new AppHistory();
 
       await appHistory.push();
 
-      let navigateCalled = false;
       const oldCurrent = appHistory.current;
       oldCurrent.addEventListener("navigateto", () => {
-        navigateCalled = true;
+        done();
       });
 
       await appHistory.back();
       await appHistory.forward();
-
-      expect(navigateCalled).toBe(true);
     });
   });
   describe("navigatefrom", () => {
-    it("fires when the entry leaves current with 'appHistory.navigateto()'", async () => {
+    it("fires when the entry leaves current with 'appHistory.navigateto()'", async (done) => {
       const appHistory = new AppHistory();
       const oldCurrent = appHistory.current;
       await appHistory.push();
 
-      let navigateCalled = false;
       appHistory.current.addEventListener("navigatefrom", () => {
-        navigateCalled = true;
+        done();
       });
 
       await appHistory.navigateTo(oldCurrent.key);
-
-      expect(navigateCalled).toBe(true);
     });
 
-    it("fires when the entry leaves current with 'appHistory.push()'", async () => {
+    it("fires when the entry leaves current with 'appHistory.push()'", async (done) => {
       const appHistory = new AppHistory();
 
-      let navigateCalled = false;
       appHistory.current.addEventListener("navigatefrom", () => {
-        navigateCalled = true;
+        done();
       });
 
       await appHistory.push();
-
-      expect(navigateCalled).toBe(true);
     });
 
-    it("fires when the entry leaves current with 'appHistory.back()'", async () => {
+    it("fires when the entry leaves current with 'appHistory.back()'", async (done) => {
       const appHistory = new AppHistory();
       await appHistory.push();
 
-      let navigateCalled = false;
       appHistory.current.addEventListener("navigatefrom", () => {
-        navigateCalled = true;
+        done();
       });
 
       await appHistory.back();
-
-      expect(navigateCalled).toBe(true);
     });
 
-    it("fires when the entry leaves current with 'appHistory.forward()'", async () => {
+    it("fires when the entry leaves current with 'appHistory.forward()'", async (done) => {
       const appHistory = new AppHistory();
 
       await appHistory.push();
       await appHistory.back();
 
-      let navigateCalled = false;
       appHistory.current.addEventListener("navigatefrom", () => {
-        navigateCalled = true;
+        done();
       });
 
       await appHistory.forward();
-
-      expect(navigateCalled).toBe(true);
     });
   });
   describe("dispose", () => {
-    it("fires when a entry is no longer reachable/in the entries list", async () => {
+    it("fires when a entry is no longer reachable/in the entries list", async (done) => {
       const appHistory = new AppHistory();
 
       await appHistory.push();
 
-      let disposeCalled = false;
       appHistory.current.addEventListener("dispose", () => {
-        disposeCalled = true;
+        done();
       });
 
       await appHistory.back();
       await appHistory.push();
+    });
 
-      expect(disposeCalled).toBe(true);
+    it("should have an index of -1 on the entry that's disposed", async (done) => {
+      const appHistory = new AppHistory();
+
+      await appHistory.push();
+
+      appHistory.current.addEventListener("dispose", (evt) => {
+        expect(evt.detail.target.index).toBe(-1);
+        done();
+      });
+
+      await appHistory.back();
+      await appHistory.push();
     });
   });
 });
@@ -589,6 +616,24 @@ describe("navigateTo", () => {
     expect(appHistory.current.url).toBe("/test1");
     expect(appHistory.entries.length).toBe(3);
     expect(appHistory.current).not.toEqual(appHistory.entries[2]);
+  });
+
+  it("should update canGoBack and canGoForward", async () => {
+    const appHistory = new AppHistory();
+    await appHistory.push();
+    await appHistory.push();
+
+    await appHistory.navigateTo(appHistory.entries[0].key);
+    expect(appHistory.canGoBack).toBe(false);
+    expect(appHistory.canGoForward).toBe(true);
+
+    await appHistory.navigateTo(appHistory.entries[1].key);
+    expect(appHistory.canGoBack).toBe(true);
+    expect(appHistory.canGoForward).toBe(true);
+
+    await appHistory.navigateTo(appHistory.entries[2].key);
+    expect(appHistory.canGoBack).toBe(true);
+    expect(appHistory.canGoForward).toBe(false);
   });
 });
 
@@ -666,6 +711,23 @@ describe("back", () => {
     expect(appHistory.entries.length).toBe(3);
     expect(appHistory.current).toEqual(appHistory.entries[0]);
   });
+
+  it("should update canGoBack and canGoForward", async () => {
+    const appHistory = new AppHistory();
+    await appHistory.push();
+    await appHistory.push();
+
+    expect(appHistory.canGoBack).toBe(true);
+    expect(appHistory.canGoForward).toBe(false);
+
+    await appHistory.back();
+    expect(appHistory.canGoBack).toBe(true);
+    expect(appHistory.canGoForward).toBe(true);
+
+    await appHistory.back();
+    expect(appHistory.canGoBack).toBe(false);
+    expect(appHistory.canGoForward).toBe(true);
+  });
 });
 
 describe("forward", () => {
@@ -698,6 +760,25 @@ describe("forward", () => {
     expect(appHistory.current.url).toBe("/test2");
     expect(appHistory.entries.length).toBe(3);
     expect(appHistory.current).toEqual(appHistory.entries[2]);
+  });
+
+  it("should update canGoBack and canGoForward", async () => {
+    const appHistory = new AppHistory();
+    const firstEntry = appHistory.current;
+    await appHistory.push();
+    await appHistory.push();
+    await appHistory.navigateTo(firstEntry.key);
+
+    expect(appHistory.canGoBack).toBe(false);
+    expect(appHistory.canGoForward).toBe(true);
+
+    await appHistory.forward();
+    expect(appHistory.canGoBack).toBe(true);
+    expect(appHistory.canGoForward).toBe(true);
+
+    await appHistory.forward();
+    expect(appHistory.canGoBack).toBe(true);
+    expect(appHistory.canGoForward).toBe(false);
   });
 
   it.todo("updates in https://github.com/WICG/app-history/pull/55/files");
