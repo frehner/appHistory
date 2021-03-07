@@ -18,12 +18,14 @@ describe("update", () => {
     const appHistory = new AppHistory();
     await appHistory.update({ state: "test" });
 
-    const { url: oldUrl, state: oldState } = appHistory.current;
+    const { url: oldUrl } = appHistory.current;
+    const oldState = appHistory.current.getState();
 
     const updatedUrl = "/newUrl";
     await appHistory.update({ url: updatedUrl });
 
-    const { url: newUrl, state: newState } = appHistory.current;
+    const { url: newUrl } = appHistory.current;
+    const newState = appHistory.current.getState();
 
     expect(oldUrl).not.toEqual(newUrl);
     expect(oldState).toEqual(newState);
@@ -33,12 +35,14 @@ describe("update", () => {
   it("only state: updates state but not the url", async () => {
     const appHistory = new AppHistory();
 
-    const { url: oldUrl, state: oldState } = appHistory.current;
+    const { url: oldUrl } = appHistory.current;
+    const oldState = appHistory.current.getState();
 
     const updatedState = "newState";
     await appHistory.update({ state: updatedState });
 
-    const { url: newUrl, state: newState } = appHistory.current;
+    const { url: newUrl } = appHistory.current;
+    const newState = appHistory.current.getState();
 
     expect(oldUrl).toEqual(newUrl);
     expect(oldState).not.toEqual(newState);
@@ -49,12 +53,12 @@ describe("update", () => {
     const appHistory = new AppHistory();
     await appHistory.update({ state: "before" });
 
-    const { state: oldState } = appHistory.current;
+    const oldState = appHistory.current.getState();
 
     const updatedState = null;
     await appHistory.update({ state: updatedState });
 
-    const { state: newState } = appHistory.current;
+    const newState = appHistory.current.getState();
 
     expect(oldState).not.toEqual(newState);
     expect(newState).toEqual(updatedState);
@@ -63,13 +67,15 @@ describe("update", () => {
   it("can update both state and url at the same time", async () => {
     const appHistory = new AppHistory();
 
-    const { url: oldUrl, state: oldState } = appHistory.current;
+    const { url: oldUrl } = appHistory.current;
+    const oldState = appHistory.current.getState();
 
     const updatedState = "newState";
     const updatedUrl = "/newUrl";
     await appHistory.update({ state: updatedState, url: updatedUrl });
 
-    const { url: newUrl, state: newState } = appHistory.current;
+    const { url: newUrl } = appHistory.current;
+    const newState = appHistory.current.getState();
 
     expect(oldUrl).not.toEqual(newUrl);
     expect(oldState).not.toEqual(newState);
@@ -90,7 +96,7 @@ describe("update", () => {
 
     expect(oldEntries).toBe(newEntries);
     expect(oldEntries.length).toBe(newEntries.length);
-    expect(newEntries[0].state).toEqual(newState);
+    expect(newEntries[0].getState()).toEqual(newState);
   });
 
   it("should update the current entry, no matter the location of current in the entry list", async () => {
@@ -135,6 +141,10 @@ describe("update", () => {
     ]);
     expect(appHistory.current.url).toBe("/newTest1");
   });
+
+  it.todo(
+    "should not allow 'update()' with no params. https://github.com/WICG/app-history/issues/52"
+  );
 });
 
 describe("push", () => {
@@ -145,8 +155,8 @@ describe("push", () => {
 
     await appHistory.push();
 
-    expect(appHistory.current.state).toBeNull();
-    expect(appHistory.current.state).not.toEqual(oldEntry.state);
+    expect(appHistory.current.getState()).toBeNull();
+    expect(appHistory.current.getState()).not.toEqual(oldEntry.getState());
     expect(appHistory.entries.length).toBe(2);
   });
 
@@ -155,7 +165,7 @@ describe("push", () => {
     await appHistory.push("/newUrl", { state: "newState" });
 
     expect(appHistory.current.url).toBe("/newUrl");
-    expect(appHistory.current.state).toBe("newState");
+    expect(appHistory.current.getState()).toBe("newState");
   });
 
   it.todo(
@@ -169,8 +179,8 @@ describe("push", () => {
     const newState = "newState";
     await appHistory.push({ state: newState });
 
-    expect(appHistory.current.state).toEqual(newState);
-    expect(appHistory.current.state).not.toEqual(oldEntry.state);
+    expect(appHistory.current.getState()).toEqual(newState);
+    expect(appHistory.current.getState()).not.toEqual(oldEntry.getState());
     expect(appHistory.current.url).toEqual(oldEntry.url);
     expect(appHistory.entries.length).toBe(2);
   });
@@ -185,8 +195,8 @@ describe("push", () => {
 
     expect(appHistory.current.url).toEqual(newUrl);
     expect(appHistory.current.url).not.toEqual(oldEntry.url);
-    expect(appHistory.current.state).not.toEqual(oldEntry.state);
-    expect(appHistory.current.state).toBeNull();
+    expect(appHistory.current.getState()).not.toEqual(oldEntry.getState());
+    expect(appHistory.current.getState()).toBeNull();
     expect(appHistory.entries.length).toBe(2);
   });
 
@@ -200,8 +210,8 @@ describe("push", () => {
 
     expect(appHistory.current.url).toEqual(newUrl);
     expect(appHistory.current.url).not.toEqual(oldEntry.url);
-    expect(appHistory.current.state).toEqual(newState);
-    expect(appHistory.current.state).not.toEqual(oldEntry.state);
+    expect(appHistory.current.getState()).toEqual(newState);
+    expect(appHistory.current.getState()).not.toEqual(oldEntry.getState());
     expect(appHistory.entries.length).toBe(2);
   });
 
@@ -780,6 +790,27 @@ describe("forward", () => {
     expect(appHistory.canGoBack).toBe(true);
     expect(appHistory.canGoForward).toBe(false);
   });
+});
 
-  it.todo("updates in https://github.com/WICG/app-history/pull/55/files");
+describe("AppHistoryEntry state", () => {
+  it("should throw an error if you try to access state directly", () => {
+    const appHistory = new AppHistory();
+    expect(() => {
+      appHistory.current.state;
+    }).toThrow();
+  });
+
+  it("should provide a copy of state, so if you change it it doesn't affect the entry", async () => {
+    const appHistory = new AppHistory();
+    await appHistory.push({ state: { test: "deep string" } });
+
+    const state = appHistory.current.getState();
+    expect(state).toEqual({ test: "deep string" });
+
+    state.test = "changed";
+
+    expect(appHistory.current.getState()).toEqual({ test: "deep string" });
+  });
+
+  it.todo("clarify if update() is the only way to change an Entry's state");
 });

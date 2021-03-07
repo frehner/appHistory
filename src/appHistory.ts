@@ -62,15 +62,11 @@ export class AppHistory {
     param1?: UpdatePushParam1Types,
     param2?: AppHistoryEntryOptions
   ) {
-    // TODO: potentially roll back the update if the navigate event is cancelled or promise is rejected.
-    // waiting on spec clarification before implementing it though
-
     // used in currentchange event
     const startTime = performance.now();
 
     const options = this.getOptionsFromParams(param1, param2);
     try {
-      // TODO: can update() be called with no parameters? If so, then what happens? see https://github.com/WICG/app-history/issues/52
       this.current.__updateEntry(options ?? {});
       this.sendNavigateEvent(this.current, options?.navigateInfo);
       this.sendCurrentChangeEvent(startTime);
@@ -249,9 +245,9 @@ class AppHistoryEntry {
     options?: AppHistoryEntryFullOptions,
     previousEntry?: AppHistoryEntry
   ) {
-    this.state = null;
+    this._state = null;
     if (options?.state) {
-      this.state = options.state;
+      this._state = options.state;
     }
     this.key = fakeRandomId();
     this.url = options?.url ?? previousEntry?.url ?? "";
@@ -261,15 +257,29 @@ class AppHistoryEntry {
 
   key: AppHistoryEntryKey;
   url: string;
-  state: any | null;
   sameDocument: boolean;
   index: number;
+
+  private _state: any | null;
+  get state(): Error {
+    throw new Error("cannot access state directly; you must use 'getState()'");
+  }
+  set state(_) {
+    throw new Error(
+      "cannot set state directly; you must use AppHistory.push() or AppHistory.update() to change state"
+    );
+  }
 
   private eventListeners: AppHistoryEntryEventListeners = {
     navigateto: [],
     navigatefrom: [],
     dispose: [],
   };
+
+  /** Provides a JSON.parse(JSON.stringify()) copy of the Entry's state.  */
+  getState(): any | null {
+    return JSON.parse(JSON.stringify(this._state));
+  }
 
   addEventListener(
     eventName: keyof AppHistoryEntryEventListeners,
@@ -286,7 +296,7 @@ class AppHistoryEntry {
     // appHistory.update() calls this function but it is not part of the actual public API for an AppHistoryEntry
     if (options?.state !== undefined) {
       // appHistory.update({state: null}) should allow you to null out the state
-      this.state = options.state;
+      this._state = options.state;
     }
     if (options?.url) {
       this.url = options.url;
