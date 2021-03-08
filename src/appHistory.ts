@@ -259,16 +259,7 @@ class AppHistoryEntry {
   url: string;
   sameDocument: boolean;
   index: number;
-
   private _state: any | null;
-  get state(): Error {
-    throw new Error("cannot access state directly; you must use 'getState()'");
-  }
-  set state(_) {
-    throw new Error(
-      "cannot set state directly; you must use AppHistory.push() or AppHistory.update() to change state"
-    );
-  }
 
   private eventListeners: AppHistoryEntryEventListeners = {
     navigateto: [],

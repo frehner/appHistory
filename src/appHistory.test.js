@@ -793,11 +793,11 @@ describe("forward", () => {
 });
 
 describe("AppHistoryEntry state", () => {
-  it("should throw an error if you try to access state directly", () => {
+  it("should not provide the state property directly; you must use getState() instead", async () => {
     const appHistory = new AppHistory();
-    expect(() => {
-      appHistory.current.state;
-    }).toThrow();
+    await appHistory.update({ state: "newState" });
+    expect(appHistory.current.state).toBe(undefined);
+    expect(appHistory.current.getState()).toBe("newState");
   });
 
   it("should provide a copy of state, so if you change it it doesn't affect the entry", async () => {
@@ -811,6 +811,4 @@ describe("AppHistoryEntry state", () => {
 
     expect(appHistory.current.getState()).toEqual({ test: "deep string" });
   });
-
-  it.todo("clarify if update() is the only way to change an Entry's state");
 });
