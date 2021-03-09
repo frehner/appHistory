@@ -21,7 +21,7 @@ export class AppHistory {
 
   private getOptionsFromParams(
     param1?: UpdatePushParam1Types,
-    param2?: AppHIstoryPushOrUpdateOptions
+    param2?: AppHistoryPushOrUpdateOptions
   ): AppHistoryPushOrUpdateFullOptions | undefined {
     let options: AppHistoryPushOrUpdateFullOptions | undefined;
     switch (typeof param1) {
@@ -60,11 +60,11 @@ export class AppHistory {
   ): Promise<undefined>;
   async update(
     url?: string,
-    options?: AppHIstoryPushOrUpdateOptions
+    options?: AppHistoryPushOrUpdateOptions
   ): Promise<undefined>;
   async update(
     param1?: UpdatePushParam1Types,
-    param2?: AppHIstoryPushOrUpdateOptions
+    param2?: AppHistoryPushOrUpdateOptions
   ) {
     // used in currentchange event
     const startTime = performance.now();
@@ -92,11 +92,11 @@ export class AppHistory {
   ): Promise<undefined>;
   async push(
     url?: string,
-    options?: AppHIstoryPushOrUpdateOptions
+    options?: AppHistoryPushOrUpdateOptions
   ): Promise<undefined>;
   async push(
     param1?: UpdatePushParam1Types,
-    param2?: AppHIstoryPushOrUpdateOptions
+    param2?: AppHistoryPushOrUpdateOptions
   ) {
     // used in the currentchange event
     const startTime = performance.now();
@@ -392,12 +392,12 @@ interface AppHistoryNavigationOptions {
   navigateInfo?: any;
 }
 
-interface AppHIstoryPushOrUpdateOptions extends AppHistoryNavigationOptions {
+interface AppHistoryPushOrUpdateOptions extends AppHistoryNavigationOptions {
   state?: any | null;
 }
 
 interface AppHistoryPushOrUpdateFullOptions
-  extends AppHIstoryPushOrUpdateOptions {
+  extends AppHistoryPushOrUpdateOptions {
   url?: string;
 }
 
