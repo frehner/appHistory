@@ -645,6 +645,20 @@ describe("navigateTo", () => {
     expect(appHistory.canGoBack).toBe(true);
     expect(appHistory.canGoForward).toBe(false);
   });
+
+  it("should allow 'navigateInfo' as a param and pass that through to the navigate event", async (done) => {
+    const appHistory = new AppHistory();
+    const oldKey = appHistory.current.key;
+
+    await appHistory.push();
+
+    appHistory.addEventListener("navigate", (evt) => {
+      expect(evt.detail.info).toBe("navigateToCalled");
+      done();
+    });
+
+    await appHistory.navigateTo(oldKey, { navigateInfo: "navigateToCalled" });
+  });
 });
 
 describe("events order", () => {
@@ -738,6 +752,19 @@ describe("back", () => {
     expect(appHistory.canGoBack).toBe(false);
     expect(appHistory.canGoForward).toBe(true);
   });
+
+  it("should allow 'navigateInfo' as a param and pass that through to the navigate event", async (done) => {
+    const appHistory = new AppHistory();
+
+    await appHistory.push();
+
+    appHistory.addEventListener("navigate", (evt) => {
+      expect(evt.detail.info).toBe("backCalled");
+      done();
+    });
+
+    await appHistory.back({ navigateInfo: "backCalled" });
+  });
 });
 
 describe("forward", () => {
@@ -789,6 +816,20 @@ describe("forward", () => {
     await appHistory.forward();
     expect(appHistory.canGoBack).toBe(true);
     expect(appHistory.canGoForward).toBe(false);
+  });
+
+  it("should allow 'navigateInfo' as a param and pass that through to the navigate event", async (done) => {
+    const appHistory = new AppHistory();
+
+    await appHistory.push();
+    await appHistory.back();
+
+    appHistory.addEventListener("navigate", (evt) => {
+      expect(evt.detail.info).toBe("forwardCalled");
+      done();
+    });
+
+    await appHistory.forward({ navigateInfo: "forwardCalled" });
   });
 });
 

@@ -21,9 +21,9 @@ export class AppHistory {
 
   private getOptionsFromParams(
     param1?: UpdatePushParam1Types,
-    param2?: AppHistoryEntryOptions
-  ): AppHistoryEntryFullOptions | undefined {
-    let options: AppHistoryEntryFullOptions | undefined;
+    param2?: AppHIstoryPushOrUpdateOptions
+  ): AppHistoryPushOrUpdateFullOptions | undefined {
+    let options: AppHistoryPushOrUpdateFullOptions | undefined;
     switch (typeof param1) {
       case "string": {
         if (param2 && typeof param2 === "object") {
@@ -52,15 +52,19 @@ export class AppHistory {
     return options;
   }
 
-  async update(callback?: () => AppHistoryEntryFullOptions): Promise<undefined>;
-  async update(fullOptions?: AppHistoryEntryFullOptions): Promise<undefined>;
+  async update(
+    callback?: () => AppHistoryPushOrUpdateFullOptions
+  ): Promise<undefined>;
+  async update(
+    fullOptions?: AppHistoryPushOrUpdateFullOptions
+  ): Promise<undefined>;
   async update(
     url?: string,
-    options?: AppHistoryEntryOptions
+    options?: AppHIstoryPushOrUpdateOptions
   ): Promise<undefined>;
   async update(
     param1?: UpdatePushParam1Types,
-    param2?: AppHistoryEntryOptions
+    param2?: AppHIstoryPushOrUpdateOptions
   ) {
     // used in currentchange event
     const startTime = performance.now();
@@ -80,13 +84,20 @@ export class AppHistory {
     return;
   }
 
-  async push(callback?: () => AppHistoryEntryFullOptions): Promise<undefined>;
-  async push(fullOptions?: AppHistoryEntryFullOptions): Promise<undefined>;
+  async push(
+    callback?: () => AppHistoryPushOrUpdateFullOptions
+  ): Promise<undefined>;
+  async push(
+    fullOptions?: AppHistoryPushOrUpdateFullOptions
+  ): Promise<undefined>;
   async push(
     url?: string,
-    options?: AppHistoryEntryOptions
+    options?: AppHIstoryPushOrUpdateOptions
   ): Promise<undefined>;
-  async push(param1?: UpdatePushParam1Types, param2?: AppHistoryEntryOptions) {
+  async push(
+    param1?: UpdatePushParam1Types,
+    param2?: AppHIstoryPushOrUpdateOptions
+  ) {
     // used in the currentchange event
     const startTime = performance.now();
 
@@ -144,18 +155,23 @@ export class AppHistory {
     throw new Error("appHistory does not listen for that event at this time");
   }
 
-  async navigateTo(key: AppHistoryEntryKey): Promise<undefined> {
+  async navigateTo(
+    key: AppHistoryEntryKey,
+    navigationOptions?: AppHistoryNavigationOptions
+  ): Promise<undefined> {
     const entryIndex = this.entries.findIndex((entry) => entry.key === key);
     if (entryIndex === -1) {
       throw new DOMException("InvalidStateError");
     }
     const navigatedEntry = this.entries[entryIndex];
 
-    await this.changeCurrentEntry(navigatedEntry);
+    await this.changeCurrentEntry(navigatedEntry, navigationOptions);
     return;
   }
 
-  async back(): Promise<undefined> {
+  async back(
+    navigationOptions?: AppHistoryNavigationOptions
+  ): Promise<undefined> {
     const entryIndex = this.entries.findIndex(
       (entry) => entry.key === this.current.key
     );
@@ -165,11 +181,13 @@ export class AppHistory {
     }
 
     const backEntry = this.entries[entryIndex - 1];
-    await this.changeCurrentEntry(backEntry);
+    await this.changeCurrentEntry(backEntry, navigationOptions);
     return;
   }
 
-  async forward(): Promise<undefined> {
+  async forward(
+    navigationOptions?: AppHistoryNavigationOptions
+  ): Promise<undefined> {
     const entryIndex = this.entries.findIndex(
       (entry) => entry.key === this.current.key
     );
@@ -179,12 +197,15 @@ export class AppHistory {
     }
 
     const forwardEntry = this.entries[entryIndex + 1];
-    await this.changeCurrentEntry(forwardEntry);
+    await this.changeCurrentEntry(forwardEntry, navigationOptions);
     return;
   }
 
-  private async changeCurrentEntry(newCurrent: AppHistoryEntry) {
-    await this.sendNavigateEvent(newCurrent);
+  private async changeCurrentEntry(
+    newCurrent: AppHistoryEntry,
+    navigationOptions?: AppHistoryNavigationOptions
+  ) {
+    await this.sendNavigateEvent(newCurrent, navigationOptions?.navigateInfo);
     this.current.__fireEventListenersForEvent("navigatefrom");
     this.current = newCurrent;
     this.current.__fireEventListenersForEvent("navigateto");
@@ -242,7 +263,7 @@ export class AppHistory {
 
 class AppHistoryEntry {
   constructor(
-    options?: AppHistoryEntryFullOptions,
+    options?: AppHistoryPushOrUpdateFullOptions,
     previousEntry?: AppHistoryEntry
   ) {
     this._state = null;
@@ -283,7 +304,10 @@ class AppHistoryEntry {
   }
 
   /** DO NOT USE; use appHistory.update() instead */
-  __updateEntry(options?: AppHistoryEntryFullOptions, newIndex?: number): void {
+  __updateEntry(
+    options?: AppHistoryPushOrUpdateFullOptions,
+    newIndex?: number
+  ): void {
     // appHistory.update() calls this function but it is not part of the actual public API for an AppHistoryEntry
     if (options?.state !== undefined) {
       // appHistory.update({state: null}) should allow you to null out the state
@@ -327,17 +351,21 @@ type AppHistoryEntryEventListeners = {
 
 type UpdatePushParam1Types =
   | string
-  | (() => AppHistoryEntryFullOptions)
-  | AppHistoryEntryFullOptions;
+  | (() => AppHistoryPushOrUpdateFullOptions)
+  | AppHistoryPushOrUpdateFullOptions;
 
 export type AppHistoryEntryKey = string;
 
-interface AppHistoryEntryOptions {
-  state?: any | null;
+interface AppHistoryNavigationOptions {
   navigateInfo?: any;
 }
 
-interface AppHistoryEntryFullOptions extends AppHistoryEntryOptions {
+interface AppHIstoryPushOrUpdateOptions extends AppHistoryNavigationOptions {
+  state?: any | null;
+}
+
+interface AppHistoryPushOrUpdateFullOptions
+  extends AppHIstoryPushOrUpdateOptions {
   url?: string;
 }
 
