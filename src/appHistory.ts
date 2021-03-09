@@ -16,7 +16,7 @@ export class AppHistory {
   canGoForward: boolean;
   private eventListeners: AppHistoryEventListeners = {
     navigate: [],
-    curentchange: [],
+    currentchange: [],
   };
 
   private getOptionsFromParams(
@@ -141,11 +141,41 @@ export class AppHistory {
     }
   }
 
+  private onEventListeners: Record<
+    keyof AppHistoryEventListeners,
+    AppHistoryEventListenerCallback | null
+  > = {
+    navigate: null,
+    currentchange: null,
+  };
+
+  onnavigate(callback: AppHistoryEventListenerCallback): void {
+    this.addOnEventListener("navigate", callback);
+  }
+
+  oncurrentchange(callback: AppHistoryEventListenerCallback): void {
+    this.addOnEventListener("currentchange", callback);
+  }
+
+  private addOnEventListener(
+    eventName: keyof AppHistoryEventListeners,
+    callback: AppHistoryEventListenerCallback
+  ) {
+    if (this.onEventListeners[eventName]) {
+      this.eventListeners[eventName] = this.eventListeners[eventName].filter(
+        (existingCallback) =>
+          existingCallback !== this.onEventListeners[eventName]
+      );
+    }
+    this.onEventListeners[eventName] = callback;
+    this.addEventListener(eventName, callback);
+  }
+
   addEventListener(
     eventName: keyof AppHistoryEventListeners,
-    callback: (event: AppHistoryNavigateEvent) => void
+    callback: AppHistoryEventListenerCallback
   ): void {
-    if (eventName === "navigate" || eventName === "curentchange") {
+    if (eventName === "navigate" || eventName === "currentchange") {
       if (!this.eventListeners[eventName].includes(callback)) {
         this.eventListeners[eventName].push(callback);
       }
@@ -250,7 +280,7 @@ export class AppHistory {
   }
 
   private sendCurrentChangeEvent(startTime: DOMHighResTimeStamp): void {
-    this.eventListeners.curentchange.forEach((listener) => {
+    this.eventListeners.currentchange.forEach((listener) => {
       try {
         listener.call(
           this,
@@ -338,9 +368,11 @@ class AppHistoryEntry {
   }
 }
 
+type AppHistoryEventListenerCallback = (event: AppHistoryNavigateEvent) => void;
+
 type AppHistoryEventListeners = {
-  navigate: Array<(event: AppHistoryNavigateEvent) => void>;
-  curentchange: Array<(event: CustomEvent) => void>;
+  navigate: Array<AppHistoryEventListenerCallback>;
+  currentchange: Array<(event: CustomEvent) => void>;
 };
 
 type AppHistoryEntryEventListeners = {

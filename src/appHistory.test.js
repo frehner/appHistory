@@ -383,6 +383,24 @@ describe("appHistory eventListeners", () => {
       expect(listenerEvents).toEqual(["1", "2"]);
     });
 
+    it("should only allow one event listener for 'onnavigate' at a time", async () => {
+      const appHistory = new AppHistory();
+
+      let timesCalled = 0;
+
+      appHistory.onnavigate(() => {
+        timesCalled++;
+      });
+
+      appHistory.onnavigate(() => {
+        timesCalled++;
+      });
+
+      await appHistory.push();
+
+      expect(timesCalled).toBe(1);
+    });
+
     it.todo("things changed in https://github.com/WICG/app-history/pull/56");
 
     describe("respondWith", () => {
@@ -427,7 +445,7 @@ describe("appHistory eventListeners", () => {
 
       let currentEvent = null;
 
-      appHistory.addEventListener("curentchange", (event) => {
+      appHistory.addEventListener("currentchange", (event) => {
         currentEvent = event;
       });
 
@@ -444,7 +462,7 @@ describe("appHistory eventListeners", () => {
 
       let currentEvent = null;
 
-      appHistory.addEventListener("curentchange", (event) => {
+      appHistory.addEventListener("currentchange", (event) => {
         currentEvent = event;
       });
 
@@ -461,18 +479,36 @@ describe("appHistory eventListeners", () => {
 
       const listenerEvents = [];
 
-      appHistory.addEventListener("curentchange", () => {
+      appHistory.addEventListener("currentchange", () => {
         listenerEvents.push("1");
         throw new Error("test");
       });
 
-      appHistory.addEventListener("curentchange", () => {
+      appHistory.addEventListener("currentchange", () => {
         listenerEvents.push("2");
       });
 
       await appHistory.push();
 
       expect(listenerEvents).toEqual(["1", "2"]);
+    });
+
+    it("should only allow one event listener for 'currentchange' at a time", async () => {
+      const appHistory = new AppHistory();
+
+      let timesCalled = 0;
+
+      appHistory.oncurrentchange(() => {
+        timesCalled++;
+      });
+
+      appHistory.oncurrentchange(() => {
+        timesCalled++;
+      });
+
+      await appHistory.push();
+
+      expect(timesCalled).toBe(1);
     });
   });
 
@@ -661,52 +697,6 @@ describe("navigateTo", () => {
   });
 });
 
-describe("events order", () => {
-  it.skip("should fire the events in order for push()", async () => {
-    // https://github.com/WICG/app-history#complete-event-sequence
-    const eventsList = [];
-
-    const appHistory = new AppHistory();
-
-    // add an entry that will be disposed of later
-    await appHistory.push();
-
-    // not needed for appHistory.push()?
-    // appHistory.current.addEventListener("navigateto", () => {
-    //   eventsList.push("current.navigateto");
-    // });
-
-    appHistory.current.addEventListener("dispose", () => {
-      eventsList.push("entry.dispose");
-    });
-
-    await appHistory.back();
-
-    appHistory.current.addEventListener("navigatefrom", () => {
-      eventsList.push("entry.navigatefrom");
-    });
-
-    appHistory.addEventListener("navigate", () => {
-      eventsList.push("navigate");
-    });
-
-    appHistory.addEventListener("curentchange", () => {
-      eventsList.push("currentchange");
-    });
-
-    await appHistory.push();
-
-    expect(eventsList).toEqual([
-      "navigate",
-      "entry.navigatefrom",
-      "currentchange",
-      "entry.dispose",
-      "entry.finish",
-      "navigatefinish",
-    ]);
-  });
-});
-
 describe("back", () => {
   it("should throw an exception if it cannot go back further", async () => {
     const appHistory = new AppHistory();
@@ -851,5 +841,51 @@ describe("AppHistoryEntry state", () => {
     state.test = "changed";
 
     expect(appHistory.current.getState()).toEqual({ test: "deep string" });
+  });
+});
+
+describe("events order", () => {
+  it.skip("should fire the events in order for push()", async () => {
+    // https://github.com/WICG/app-history#complete-event-sequence
+    const eventsList = [];
+
+    const appHistory = new AppHistory();
+
+    // add an entry that will be disposed of later
+    await appHistory.push();
+
+    // not needed for appHistory.push()?
+    // appHistory.current.addEventListener("navigateto", () => {
+    //   eventsList.push("current.navigateto");
+    // });
+
+    appHistory.current.addEventListener("dispose", () => {
+      eventsList.push("entry.dispose");
+    });
+
+    await appHistory.back();
+
+    appHistory.current.addEventListener("navigatefrom", () => {
+      eventsList.push("entry.navigatefrom");
+    });
+
+    appHistory.addEventListener("navigate", () => {
+      eventsList.push("navigate");
+    });
+
+    appHistory.addEventListener("currentchange", () => {
+      eventsList.push("currentchange");
+    });
+
+    await appHistory.push();
+
+    expect(eventsList).toEqual([
+      "navigate",
+      "entry.navigatefrom",
+      "currentchange",
+      "entry.dispose",
+      "entry.finish",
+      "navigatefinish",
+    ]);
   });
 });
