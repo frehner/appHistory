@@ -416,7 +416,7 @@ describe("appHistory eventListeners", () => {
         expect(appHistory.current.url).toBe(newUrl);
       });
 
-      it("should not navigate if the promise rejects", async () => {
+      it("should navigate even if the promise rejects", async () => {
         const appHistory = new AppHistory();
 
         let upcomingEntry;
@@ -425,14 +425,14 @@ describe("appHistory eventListeners", () => {
           evt.detail.respondWith(Promise.reject());
         });
 
-        const previousCurrent = appHistory.current;
-
         const newUrl = "/newUrl";
-        await appHistory.push({ url: newUrl });
 
-        expect(appHistory.current.url).not.toBe(newUrl);
-        expect(appHistory.current).toEqual(previousCurrent);
-        expect(appHistory.current).not.toEqual(upcomingEntry);
+        try {
+          await appHistory.push({ url: newUrl });
+        } catch (error) {}
+
+        expect(appHistory.current.url).toBe(newUrl);
+        expect(appHistory.current).toEqual(upcomingEntry);
       });
     });
   });
@@ -636,6 +636,28 @@ describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per
 
       await appHistory.back();
       await appHistory.push();
+    });
+  });
+
+  describe("finish", () => {
+    it("should fire finish on successful push navigation", async (done) => {
+      const appHistory = new AppHistory();
+
+      appHistory.onnavigate((evt) => {
+        evt.respondWith(
+          new Promise((resolve) => {
+            setTimeout(resolve, 10);
+          })
+        );
+      });
+
+      const pushPromise = appHistory.push("newUrl");
+
+      appHistory.current.addEventListener("finish", () => {
+        done();
+      });
+
+      await pushPromise;
     });
   });
 });
@@ -845,7 +867,7 @@ describe("AppHistoryEntry state", () => {
 });
 
 describe("events order", () => {
-  it.skip("should fire the events in order for push()", async () => {
+  it("should fire the events in order for successful push()", async () => {
     // https://github.com/WICG/app-history#complete-event-sequence
     const eventsList = [];
 
@@ -854,9 +876,9 @@ describe("events order", () => {
     // add an entry that will be disposed of later
     await appHistory.push();
 
-    // not needed for appHistory.push()?
+    // can you add a navigateto listener to an new entry that you just pushed?
     // appHistory.current.addEventListener("navigateto", () => {
-    //   eventsList.push("current.navigateto");
+    //   eventsList.push("entry.navigateto");
     // });
 
     appHistory.current.addEventListener("dispose", () => {
@@ -869,23 +891,107 @@ describe("events order", () => {
       eventsList.push("entry.navigatefrom");
     });
 
-    appHistory.addEventListener("navigate", () => {
+    appHistory.addEventListener("navigate", (evt) => {
       eventsList.push("navigate");
+      evt.detail.respondWith(
+        new Promise((resolve) => {
+          setTimeout(resolve, 10);
+        })
+      );
     });
 
     appHistory.addEventListener("currentchange", () => {
       eventsList.push("currentchange");
     });
 
-    await appHistory.push();
+    appHistory.addEventListener("navigatesuccess", () => {
+      eventsList.push("navigatesuccess");
+    });
+
+    // don't await here so we can add the finish listener to the new entry; we await the promise later
+    const pushPromise = appHistory.push();
+
+    appHistory.current.addEventListener("finish", () => {
+      eventsList.push("entry.finish");
+    });
+
+    await pushPromise;
 
     expect(eventsList).toEqual([
       "navigate",
       "entry.navigatefrom",
       "currentchange",
+      // "entry.navigateto", // can you add a navigateto listener to an new entry that you just pushed?
       "entry.dispose",
       "entry.finish",
-      "navigatefinish",
+      "navigatesuccess",
     ]);
   });
+
+  it("should fire the events in order for unsuccessful push()", async () => {
+    // https://github.com/WICG/app-history#complete-event-sequence
+    const eventsList = [];
+
+    const appHistory = new AppHistory();
+
+    // add an entry that will be disposed of later
+    await appHistory.push();
+
+    // can you add a navigateto listener to an new entry that you just pushed?
+    // appHistory.current.addEventListener("navigateto", () => {
+    //   eventsList.push("entry.navigateto");
+    // });
+
+    appHistory.current.addEventListener("dispose", () => {
+      eventsList.push("entry.dispose");
+    });
+
+    await appHistory.back();
+
+    appHistory.current.addEventListener("navigatefrom", () => {
+      eventsList.push("entry.navigatefrom");
+    });
+
+    appHistory.addEventListener("navigate", (evt) => {
+      eventsList.push("navigate");
+      evt.detail.respondWith(
+        new Promise((_, reject) => {
+          setTimeout(reject, 10);
+        })
+      );
+    });
+
+    appHistory.addEventListener("currentchange", () => {
+      eventsList.push("currentchange");
+    });
+
+    appHistory.addEventListener("navigateerror", () => {
+      eventsList.push("navigateerror");
+    });
+
+    // don't await here so we can add the finish listener to the new entry; we await the promise later
+    const pushPromise = appHistory.push();
+
+    appHistory.current.addEventListener("finish", () => {
+      eventsList.push("entry.finish");
+    });
+
+    try {
+      // the promise rejects, so we need to handle that but still run the test
+      await pushPromise;
+    } catch (error) {}
+
+    expect(eventsList).toEqual([
+      "navigate",
+      "entry.navigatefrom",
+      "currentchange",
+      // "entry.navigateto", // can you add a navigateto listener to an new entry that you just pushed?
+      "entry.dispose",
+      "entry.finish",
+      "navigateerror",
+    ]);
+  });
+
+  it.todo("should fire the events in order for successful update()");
+  it.todo("should fire the events in order for unsuccessful update()");
 });

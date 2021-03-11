@@ -17,6 +17,8 @@ export class AppHistory {
   private eventListeners: AppHistoryEventListeners = {
     navigate: [],
     currentchange: [],
+    navigatesuccess: [],
+    navigateerror: [],
   };
 
   private getOptionsFromParams(
@@ -104,41 +106,52 @@ export class AppHistory {
     const options = this.getOptionsFromParams(param1, param2);
 
     const upcomingEntry = new AppHistoryEntry(options, this.current);
-    try {
-      await this.sendNavigateEvent(upcomingEntry, options?.navigateInfo);
-      const oldCurrent = this.current;
-      const oldCurrentIndex = this.entries.findIndex(
-        (entry) => entry.key === oldCurrent.key
-      );
 
-      oldCurrent.__fireEventListenersForEvent("navigatefrom");
+    const respondWithPromiseArray = this.sendNavigateEvent(
+      upcomingEntry,
+      options?.navigateInfo
+    );
 
-      this.sendCurrentChangeEvent(startTime);
+    this.current.__fireEventListenersForEvent("navigatefrom");
+    const oldCurrent = this.current;
+    const oldCurrentIndex = this.entries.findIndex(
+      (entry) => entry.key === oldCurrent.key
+    );
 
-      this.entries.slice(oldCurrentIndex + 1).forEach((disposedEntry) => {
-        disposedEntry.__updateEntry(undefined, -1);
-        disposedEntry.__fireEventListenersForEvent("dispose");
-      });
+    // location.href updates here.
 
-      this.canGoBack = true;
-      this.canGoForward = false;
+    this.current = upcomingEntry;
+    this.canGoBack = true;
+    this.canGoForward = false;
 
-      this.current = upcomingEntry;
-      this.entries = [
-        ...this.entries.slice(0, oldCurrentIndex + 1),
-        this.current,
-      ].map((entry, entryIndex) => {
-        entry.__updateEntry(undefined, entryIndex);
-        return entry;
-      });
-      return;
-    } catch (error) {
-      if (error instanceof DOMException) {
-        // ensure that error is passed through to the client
+    this.sendCurrentChangeEvent(startTime);
+    this.current.__fireEventListenersForEvent("navigateto");
+
+    this.entries.slice(oldCurrentIndex + 1).forEach((disposedEntry) => {
+      disposedEntry.__updateEntry(undefined, -1);
+      disposedEntry.__fireEventListenersForEvent("dispose");
+    });
+
+    this.entries = [
+      ...this.entries.slice(0, oldCurrentIndex + 1),
+      this.current,
+    ].map((entry, entryIndex) => {
+      entry.__updateEntry(undefined, entryIndex);
+      return entry;
+    });
+
+    return Promise.all(respondWithPromiseArray)
+      .then(() => {
+        upcomingEntry.finished = true;
+        upcomingEntry.__fireEventListenersForEvent("finish");
+        this.sendNavigateSuccessEvent();
+      })
+      .catch((error) => {
+        upcomingEntry.finished = true;
+        upcomingEntry.__fireEventListenersForEvent("finish");
+        this.sendNavigateErrorEvent(error);
         throw error;
-      }
-      return;
-    }
+      });
   }
 
   private onEventListeners: Record<
@@ -147,6 +160,8 @@ export class AppHistory {
   > = {
     navigate: null,
     currentchange: null,
+    navigatesuccess: null,
+    navigateerror: null,
   };
 
   onnavigate(callback: AppHistoryEventListenerCallback): void {
@@ -155,6 +170,14 @@ export class AppHistory {
 
   oncurrentchange(callback: AppHistoryEventListenerCallback): void {
     this.addOnEventListener("currentchange", callback);
+  }
+
+  onnavigatesuccess(callback: AppHistoryEventListenerCallback): void {
+    this.addOnEventListener("navigatesuccess", callback);
+  }
+
+  onnavigateerror(callback: AppHistoryEventListenerCallback): void {
+    this.addOnEventListener("navigateerror", callback);
   }
 
   private addOnEventListener(
@@ -175,7 +198,12 @@ export class AppHistory {
     eventName: keyof AppHistoryEventListeners,
     callback: AppHistoryEventListenerCallback
   ): void {
-    if (eventName === "navigate" || eventName === "currentchange") {
+    if (
+      eventName === "navigate" ||
+      eventName === "currentchange" ||
+      eventName === "navigatesuccess" ||
+      eventName === "navigateerror"
+    ) {
       if (!this.eventListeners[eventName].includes(callback)) {
         this.eventListeners[eventName].push(callback);
       }
@@ -244,10 +272,10 @@ export class AppHistory {
     this.canGoForward = this.current.index < this.entries.length - 1;
   }
 
-  private async sendNavigateEvent(
+  private sendNavigateEvent(
     destinationEntry: AppHistoryEntry,
     info?: any
-  ) {
+  ): Array<Promise<undefined>> {
     const respondWithResponses: Array<Promise<undefined>> = [];
 
     const navigateEvent = new AppHistoryNavigateEvent({
@@ -275,8 +303,7 @@ export class AppHistory {
       throw new DOMException("AbortError");
     }
 
-    await Promise.all(respondWithResponses);
-    return;
+    return respondWithResponses;
   }
 
   private sendCurrentChangeEvent(startTime: DOMHighResTimeStamp): void {
@@ -285,6 +312,26 @@ export class AppHistory {
         listener.call(
           this,
           new AppHistoryCurrentChangeEvent({ detail: { startTime } })
+        );
+      } catch (error) {}
+    });
+  }
+
+  private sendNavigateSuccessEvent() {
+    this.eventListeners.navigatesuccess.forEach((listener) => {
+      try {
+        listener(new CustomEvent("TODO figure out the correct event"));
+      } catch (error) {}
+    });
+  }
+
+  private sendNavigateErrorEvent(error: Error) {
+    this.eventListeners.navigateerror.forEach((listener) => {
+      try {
+        listener(
+          new CustomEvent("TODO figure out the correct event", {
+            detail: { error },
+          })
         );
       } catch (error) {}
     });
@@ -304,6 +351,7 @@ class AppHistoryEntry {
     this.url = options?.url ?? previousEntry?.url ?? "";
     this.sameDocument = true;
     this.index = -1;
+    this.finished = false;
   }
 
   key: AppHistoryEntryKey;
@@ -311,11 +359,13 @@ class AppHistoryEntry {
   sameDocument: boolean;
   index: number;
   private _state: any | null;
+  finished: boolean;
 
   private eventListeners: AppHistoryEntryEventListeners = {
     navigateto: [],
     navigatefrom: [],
     dispose: [],
+    finish: [],
   };
 
   /** Provides a JSON.parse(JSON.stringify()) copy of the Entry's state.  */
@@ -373,12 +423,15 @@ type AppHistoryEventListenerCallback = (event: AppHistoryNavigateEvent) => void;
 type AppHistoryEventListeners = {
   navigate: Array<AppHistoryEventListenerCallback>;
   currentchange: Array<(event: CustomEvent) => void>;
+  navigatesuccess: Array<(event: CustomEvent) => void>;
+  navigateerror: Array<(event: CustomEvent) => void>;
 };
 
 type AppHistoryEntryEventListeners = {
   navigateto: Array<(event: CustomEvent) => void>;
   navigatefrom: Array<(event: CustomEvent) => void>;
   dispose: Array<(event: CustomEvent) => void>;
+  finish: Array<(event: CustomEvent) => void>;
 };
 
 type UpdatePushParam1Types =
