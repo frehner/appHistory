@@ -72,18 +72,31 @@ export class AppHistory {
     const startTime = performance.now();
 
     const options = this.getOptionsFromParams(param1, param2);
-    try {
-      this.current.__updateEntry(options ?? {});
-      this.sendNavigateEvent(this.current, options?.navigateInfo);
-      this.sendCurrentChangeEvent(startTime);
-    } catch (error) {
-      if (error instanceof DOMException) {
-        // ensure that error is passed through to the client
+
+    // location.href updates here
+
+    this.current.__updateEntry(options ?? {});
+    this.current.finished = false;
+
+    const respondWithPromiseArray = this.sendNavigateEvent(
+      this.current,
+      options?.navigateInfo
+    );
+
+    this.sendCurrentChangeEvent(startTime);
+
+    return Promise.all(respondWithPromiseArray)
+      .then(() => {
+        this.current.finished = true;
+        this.current.__fireEventListenersForEvent("finish");
+        this.sendNavigateSuccessEvent();
+      })
+      .catch((error) => {
+        this.current.finished = true;
+        this.current.__fireEventListenersForEvent("finish");
+        this.sendNavigateErrorEvent(error);
         throw error;
-      }
-      return;
-    }
-    return;
+      });
   }
 
   async push(

@@ -992,6 +992,110 @@ describe("events order", () => {
     ]);
   });
 
-  it.todo("should fire the events in order for successful update()");
-  it.todo("should fire the events in order for unsuccessful update()");
+  it("should fire the events in order for successful update()", async () => {
+    // https://github.com/WICG/app-history#complete-event-sequence
+    const eventsList = [];
+
+    const appHistory = new AppHistory();
+
+    // can you add a navigateto listener to an new entry that you just pushed?
+    // appHistory.current.addEventListener("navigateto", () => {
+    //   eventsList.push("entry.navigateto");
+    // });
+
+    // appHistory.current.addEventListener("navigatefrom", () => {
+    //   eventsList.push("entry.navigatefrom");
+    // });
+
+    appHistory.addEventListener("navigate", (evt) => {
+      eventsList.push("navigate");
+      evt.detail.respondWith(
+        new Promise((respond) => {
+          setTimeout(respond, 10);
+        })
+      );
+    });
+
+    appHistory.addEventListener("currentchange", () => {
+      eventsList.push("currentchange");
+    });
+
+    appHistory.addEventListener("navigatesuccess", () => {
+      eventsList.push("navigatesuccess");
+    });
+
+    // don't await here so we can add the finish listener to the new entry; we await the promise later
+    const updatePromise = appHistory.update({ state: "newState" });
+
+    appHistory.current.addEventListener("finish", () => {
+      eventsList.push("entry.finish");
+    });
+
+    await updatePromise;
+
+    expect(eventsList).toEqual([
+      "navigate",
+      // "entry.navigatefrom", // update() doesn't cause this to fire, I don't believe
+      "currentchange",
+      // "entry.navigateto", // can you add a navigateto listener to an new entry that you just pushed?
+      // "entry.dispose", // nothing is disposed when you call update()
+      "entry.finish",
+      "navigatesuccess",
+    ]);
+  });
+
+  it("should fire the events in order for unsuccessful update()", async () => {
+    // https://github.com/WICG/app-history#complete-event-sequence
+    const eventsList = [];
+
+    const appHistory = new AppHistory();
+
+    // can you add a navigateto listener to an new entry that you just pushed?
+    // appHistory.current.addEventListener("navigateto", () => {
+    //   eventsList.push("entry.navigateto");
+    // });
+
+    // appHistory.current.addEventListener("navigatefrom", () => {
+    //   eventsList.push("entry.navigatefrom");
+    // });
+
+    appHistory.addEventListener("navigate", (evt) => {
+      eventsList.push("navigate");
+      evt.detail.respondWith(
+        new Promise((_, reject) => {
+          setTimeout(reject, 10);
+        })
+      );
+    });
+
+    appHistory.addEventListener("currentchange", () => {
+      eventsList.push("currentchange");
+    });
+
+    appHistory.addEventListener("navigateerror", () => {
+      eventsList.push("navigateerror");
+    });
+
+    // don't await here so we can add the finish listener to the new entry; we await the promise later
+    const updatePromise = appHistory.update({ state: "newState" });
+
+    appHistory.current.addEventListener("finish", () => {
+      eventsList.push("entry.finish");
+    });
+
+    try {
+      // it throws an error but we still want this test to proceed
+      await updatePromise;
+    } catch (error) {}
+
+    expect(eventsList).toEqual([
+      "navigate",
+      // "entry.navigatefrom", // update() doesn't cause this to fire, I don't believe
+      "currentchange",
+      // "entry.navigateto", // can you add a navigateto listener to an new entry that you just pushed?
+      // "entry.dispose", // nothing is disposed when you call update()
+      "entry.finish",
+      "navigateerror",
+    ]);
+  });
 });
