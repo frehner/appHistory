@@ -191,4 +191,6 @@ module.exports = {
 
   // Whether to use watchman for file crawling
   // watchman: true,
+
+  testURL: "http://localhost",
 };

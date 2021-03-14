@@ -1,5 +1,4 @@
-// @ts-ignore
-import { fakeRandomId } from "./helpers.ts";
+import { fakeRandomId } from "./helpers";
 
 export class AppHistory {
   constructor() {
@@ -131,7 +130,15 @@ export class AppHistory {
       (entry) => entry.key === oldCurrent.key
     );
 
-    // location.href updates here.
+    const upcomingURL = new URL(
+      upcomingEntry.url,
+      window.location.origin + window.location.pathname
+    );
+    if (upcomingURL.origin === window.location.origin) {
+      window.history.pushState(null, "", upcomingEntry.url);
+    } else {
+      window.location.assign(upcomingEntry.url);
+    }
 
     this.current = upcomingEntry;
     this.canGoBack = true;
@@ -291,14 +298,19 @@ export class AppHistory {
   ): Array<Promise<undefined>> {
     const respondWithResponses: Array<Promise<undefined>> = [];
 
+    const upcomingURL = new URL(
+      destinationEntry.url,
+      window.location.origin + window.location.pathname
+    );
+
     const navigateEvent = new AppHistoryNavigateEvent({
       cancelable: true,
       detail: {
         userInitiated: true,
-        sameOrigin: true,
-        hashChange: true,
+        hashChange: destinationEntry.sameDocument, // at this moment in time, they're the same. in the future they potentially won't be, since sameDocument changes if respondWith() is called
         destination: destinationEntry,
         info,
+        canRespond: upcomingURL.origin === window.location.origin,
         respondWith: (respondWithPromise: Promise<undefined>): void => {
           respondWithResponses.push(respondWithPromise);
         },
@@ -361,10 +373,19 @@ class AppHistoryEntry {
       this._state = options.state;
     }
     this.key = fakeRandomId();
-    this.url = options?.url ?? previousEntry?.url ?? "";
-    this.sameDocument = true;
     this.index = -1;
     this.finished = false;
+
+    const upcomingUrl = options?.url ?? previousEntry?.url ?? "";
+    this.url = upcomingUrl;
+
+    const upcomingUrlObj = new URL(
+      upcomingUrl,
+      window.location.origin + window.location.pathname
+    );
+    this.sameDocument =
+      upcomingUrlObj.origin === window.location.origin &&
+      upcomingUrlObj.pathname === window.location.pathname;
   }
 
   key: AppHistoryEntryKey;
@@ -469,11 +490,11 @@ interface AppHistoryPushOrUpdateFullOptions
 
 class AppHistoryNavigateEvent extends CustomEvent<{
   readonly userInitiated: boolean;
-  readonly sameOrigin: boolean;
   readonly hashChange: boolean;
   readonly destination: AppHistoryEntry;
   readonly formData?: null;
   readonly info: any;
+  readonly canRespond: boolean;
   respondWith: () => Promise<undefined>;
 }> {
   constructor(customEventInit: CustomEventInit) {

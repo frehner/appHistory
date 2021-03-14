@@ -13,6 +13,42 @@ describe("appHistory constructor", () => {
   });
 });
 
+describe("AppHistoryEntry constructor", () => {
+  it("should correctly set 'sameDocument'", async () => {
+    const appHistory = new AppHistory();
+    await appHistory.push("/newUrl");
+    expect(appHistory.current.sameDocument).toBe(false);
+
+    await appHistory.push("/newUrl#test");
+    expect(appHistory.current.sameDocument).toBe(true);
+
+    await appHistory.push("#new-test");
+    expect(appHistory.current.sameDocument).toBe(true);
+
+    const oldAssign = window.location.assign;
+    const newAssign = jest.fn();
+    Object.defineProperty(window, "location", {
+      writable: true,
+      value: {
+        ...window.location,
+        assign: newAssign,
+      },
+    });
+
+    await appHistory.push("https://example.com");
+    expect(appHistory.current.sameDocument).toBe(false);
+    expect(newAssign.mock.calls.length).toBe(1);
+
+    Object.defineProperty(window, "location", {
+      writable: false,
+      value: {
+        ...window.location,
+        assign: oldAssign,
+      },
+    });
+  });
+});
+
 describe("update", () => {
   it("only url: updates url but not the state", async () => {
     const appHistory = new AppHistory();
@@ -401,7 +437,8 @@ describe("appHistory eventListeners", () => {
       expect(timesCalled).toBe(1);
     });
 
-    it.todo("things changed in https://github.com/WICG/app-history/pull/56");
+    it.todo("all the 'canRespond' cases");
+    it.todo("'hashChange' tests");
 
     describe("respondWith", () => {
       it("should work if the promise resolves successfully", async () => {
