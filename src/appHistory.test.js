@@ -25,27 +25,13 @@ describe("AppHistoryEntry constructor", () => {
     await appHistory.push("#new-test");
     expect(appHistory.current.sameDocument).toBe(true);
 
-    const oldAssign = window.location.assign;
-    const newAssign = jest.fn();
-    Object.defineProperty(window, "location", {
-      writable: true,
-      value: {
-        ...window.location,
-        assign: newAssign,
-      },
-    });
+    MockLocation.mock();
 
     await appHistory.push("https://example.com");
     expect(appHistory.current.sameDocument).toBe(false);
-    expect(newAssign.mock.calls.length).toBe(1);
+    expect(window.location.assign.mock.calls.length).toBe(1);
 
-    Object.defineProperty(window, "location", {
-      writable: false,
-      value: {
-        ...window.location,
-        assign: oldAssign,
-      },
-    });
+    MockLocation.restore();
   });
 });
 
@@ -326,6 +312,9 @@ describe("push", () => {
 
 describe("appHistory eventListeners", () => {
   describe("navigate", () => {
+    beforeEach(() => {
+      window.history.pushState(null, "", "/");
+    });
     it("should add an event listener", async (done) => {
       const appHistory = new AppHistory();
 
@@ -437,8 +426,45 @@ describe("appHistory eventListeners", () => {
       expect(timesCalled).toBe(1);
     });
 
+    it("should set 'hashChange' to false if it's cross-document", async (done) => {
+      const appHistory = new AppHistory();
+      await appHistory.push("/path");
+
+      appHistory.addEventListener("navigate", (evt) => {
+        expect(evt.detail.hashChange).toBe(false);
+        done();
+      });
+
+      await appHistory.push("/otherPath");
+    });
+
+    it("should set 'hashChange' to true if it's same-document", async (done) => {
+      const appHistory = new AppHistory();
+      await appHistory.push("/broken");
+
+      appHistory.addEventListener("navigate", (evt) => {
+        expect(evt.detail.hashChange).toBe(true);
+        done();
+      });
+
+      await appHistory.push("/broken#test");
+    });
+
+    it("should set 'hashChange' to false if it's same-document but only query param changed", async (done) => {
+      const appHistory = new AppHistory();
+      await appHistory.push("/path#test");
+
+      appHistory.addEventListener("navigate", (evt) => {
+        expect(evt.detail.hashChange).toBe(false);
+        done();
+      });
+
+      await appHistory.push("/path?search=new#test");
+    });
+
+    it.todo("add a case for when search params come after the hash?");
+
     it.todo("all the 'canRespond' cases");
-    it.todo("'hashChange' tests");
 
     describe("respondWith", () => {
       it("should work if the promise resolves successfully", async () => {
@@ -1136,3 +1162,39 @@ describe("events order", () => {
     ]);
   });
 });
+
+class MockLocation {
+  // thanks to https://github.com/Shopify/quilt/blob/main/packages/jest-dom-mocks/src/location.ts
+  static mock() {
+    if (this.locationSpy) {
+      throw new Error(
+        "You tried to mock window.location when it was already mocked."
+      );
+    }
+
+    this.locationSpy = jest.spyOn(window, "location", "get");
+    this.locationSpy.mockReturnValue({
+      ...window.location,
+      assign: jest.fn((..._args) => {}),
+      reload: jest.fn(() => {}),
+      replace: jest.fn((..._args) => {}),
+    });
+
+    return this.locationSpy;
+  }
+
+  static restore() {
+    if (!this.locationSpy) {
+      throw new Error(
+        "You tried to restore window.location when it was already restored."
+      );
+    }
+
+    this.locationSpy.mockRestore();
+    this.locationSpy = null;
+  }
+
+  static isMocked() {
+    return Boolean(this.locationSpy);
+  }
+}

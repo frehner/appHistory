@@ -307,7 +307,9 @@ export class AppHistory {
       cancelable: true,
       detail: {
         userInitiated: true,
-        hashChange: destinationEntry.sameDocument, // at this moment in time, they're the same. in the future they potentially won't be, since sameDocument changes if respondWith() is called
+        hashChange:
+          destinationEntry.sameDocument &&
+          upcomingURL.hash !== window.location.hash,
         destination: destinationEntry,
         info,
         canRespond: upcomingURL.origin === window.location.origin,
