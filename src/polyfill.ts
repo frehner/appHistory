@@ -1,6 +1,11 @@
 import { AppHistory } from "./appHistory";
 
-export function useBrowserPolyfill() {
+type UseBrowserPolyfillOptions = {
+  configurable?: boolean;
+};
+export function useBrowserPolyfill({
+  configurable = false,
+}: UseBrowserPolyfillOptions) {
   if ("appHistory" in window) {
     return;
   }
@@ -8,11 +13,12 @@ export function useBrowserPolyfill() {
   Object.defineProperty(window, "appHistory", {
     value: new AppHistory(),
     enumerable: true,
+    configurable,
   });
 
-  // on anchor/area clicks, fire 'appHistory.push()'
   window.addEventListener("click", (evt) => {
     if (evt.target && evt.target instanceof HTMLElement) {
+      // on anchor/area clicks, fire 'appHistory.push()'
       const linkTag =
         evt.target.nodeName === "A" || evt.target.nodeName === "AREA"
           ? (evt.target as HTMLAreaElement | HTMLAnchorElement)
