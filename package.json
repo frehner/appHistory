@@ -2,7 +2,7 @@
   "name": "apphistory",
   "version": "0.0.1",
   "description": "A polyfill for the appHistory proposal. Not ready for production",
-  "main": "build/appHistory.js",
+  "main": "build/esm/appHistory.min.js",
   "types": "build/types/appHistory.d.ts",
   "scripts": {
     "dev": "npm run test:watch & npm run ts:watch",
@@ -19,6 +19,16 @@
     "hooks": {
       "pre-commit": "pretty-quick --staged"
     }
+  },
+  "keywords": [
+    "appHistory",
+    "app history"
+  ],
+  "homepage": "https://github.com/frehner/appHistory",
+  "bugs": "https://github.com/frehner/appHistory/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/frehner/appHistory"
   },
   "devDependencies": {
     "@babel/core": "^7.12.16",
@@ -37,6 +47,7 @@
     "jest-cli": "^26.6.3",
     "pretty-quick": "^3.1.0",
     "rollup": "^2.38.5",
+    "rollup-plugin-terser": "^7.0.2",
     "typescript": "^4.1.5"
   }
 }
