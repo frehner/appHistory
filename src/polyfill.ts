@@ -3,9 +3,7 @@ import { AppHistory } from "./appHistory";
 type UseBrowserPolyfillOptions = {
   configurable?: boolean;
 };
-export function useBrowserPolyfill({
-  configurable = false,
-}: UseBrowserPolyfillOptions) {
+export function useBrowserPolyfill(options?: UseBrowserPolyfillOptions) {
   if ("appHistory" in window) {
     return;
   }
@@ -13,7 +11,7 @@ export function useBrowserPolyfill({
   Object.defineProperty(window, "appHistory", {
     value: new AppHistory(),
     enumerable: true,
-    configurable,
+    configurable: options?.configurable ?? false,
   });
 
   window.addEventListener("click", (evt) => {

@@ -52,4 +52,8 @@ describe("useBrowserPolyfill", () => {
 
     expect(eventListener).not.toBeCalled();
   });
+
+  it("should not error out if no param passed", () => {
+    useBrowserPolyfill();
+  });
 });
