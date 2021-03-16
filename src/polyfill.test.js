@@ -16,7 +16,7 @@ describe("useBrowserPolyfill", () => {
     useBrowserPolyfill({ configurable: true });
 
     window.appHistory.addEventListener("navigate", (evt) => {
-      expect(evt.detail.destination.url).toBe("http://localhost/page");
+      expect(evt.destination.url).toBe("http://localhost/page");
       done();
     });
 
@@ -29,7 +29,7 @@ describe("useBrowserPolyfill", () => {
     useBrowserPolyfill({ configurable: true });
 
     window.appHistory.addEventListener("navigate", (evt) => {
-      expect(evt.detail.destination.url).toBe("http://localhost/page");
+      expect(evt.destination.url).toBe("http://localhost/page");
       done();
     });
 

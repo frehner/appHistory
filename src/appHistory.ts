@@ -176,7 +176,7 @@ export class AppHistory {
 
   private onEventListeners: Record<
     keyof AppHistoryEventListeners,
-    AppHistoryEventListenerCallback | null
+    AppHistoryNavigateEventListener | null
   > = {
     navigate: null,
     currentchange: null,
@@ -184,31 +184,38 @@ export class AppHistory {
     navigateerror: null,
   };
 
-  onnavigate(callback: AppHistoryEventListenerCallback): void {
+  onnavigate(callback: AppHistoryNavigateEventListener): void {
     this.addOnEventListener("navigate", callback);
   }
 
-  oncurrentchange(callback: AppHistoryEventListenerCallback): void {
+  oncurrentchange(callback: EventListener): void {
     this.addOnEventListener("currentchange", callback);
   }
 
-  onnavigatesuccess(callback: AppHistoryEventListenerCallback): void {
+  onnavigatesuccess(callback: EventListener): void {
     this.addOnEventListener("navigatesuccess", callback);
   }
 
-  onnavigateerror(callback: AppHistoryEventListenerCallback): void {
+  onnavigateerror(callback: EventListener): void {
     this.addOnEventListener("navigateerror", callback);
   }
 
   private addOnEventListener(
     eventName: keyof AppHistoryEventListeners,
-    callback: AppHistoryEventListenerCallback
+    callback: AppHistoryNavigateEventListener | EventListener
   ) {
     if (this.onEventListeners[eventName]) {
-      this.eventListeners[eventName] = this.eventListeners[eventName].filter(
-        (existingCallback) =>
-          existingCallback !== this.onEventListeners[eventName]
-      );
+      if (eventName === "navigate") {
+        this.eventListeners.navigate = this.eventListeners.navigate.filter(
+          (existingCallback) =>
+            existingCallback !== this.onEventListeners.navigate
+        );
+      } else {
+        this.eventListeners[eventName] = this.eventListeners[eventName].filter(
+          (existingCallback) =>
+            existingCallback !== this.onEventListeners[eventName]
+        );
+      }
     }
     this.onEventListeners[eventName] = callback;
     this.addEventListener(eventName, callback);
@@ -216,7 +223,7 @@ export class AppHistory {
 
   addEventListener(
     eventName: keyof AppHistoryEventListeners,
-    callback: AppHistoryEventListenerCallback
+    callback: AppHistoryNavigateEventListener | EventListener
   ): void {
     if (
       eventName === "navigate" ||
@@ -224,8 +231,15 @@ export class AppHistory {
       eventName === "navigatesuccess" ||
       eventName === "navigateerror"
     ) {
-      if (!this.eventListeners[eventName].includes(callback)) {
-        this.eventListeners[eventName].push(callback);
+      if (isAppHistoryNavigateEventListener(eventName, callback)) {
+        // TS complains if I don't check the type of the callback here
+        if (!this.eventListeners.navigate.includes(callback)) {
+          this.eventListeners.navigate.push(callback);
+        }
+      } else {
+        if (!this.eventListeners[eventName].includes(callback)) {
+          this.eventListeners[eventName].push(callback);
+        }
       }
       return;
     }
@@ -303,19 +317,25 @@ export class AppHistory {
       window.location.origin + window.location.pathname
     );
 
+    const canRespond = upcomingURL.origin === window.location.origin;
+
     const navigateEvent = new AppHistoryNavigateEvent({
       cancelable: true,
-      detail: {
-        userInitiated: true,
-        hashChange:
-          destinationEntry.sameDocument &&
-          upcomingURL.hash !== window.location.hash,
-        destination: destinationEntry,
-        info,
-        canRespond: upcomingURL.origin === window.location.origin,
-        respondWith: (respondWithPromise: Promise<undefined>): void => {
+      userInitiated: true,
+      hashChange:
+        destinationEntry.sameDocument &&
+        upcomingURL.hash !== window.location.hash,
+      destination: destinationEntry,
+      info,
+      canRespond,
+      respondWith: (respondWithPromise: Promise<undefined>): void => {
+        if (canRespond) {
           respondWithResponses.push(respondWithPromise);
-        },
+        } else {
+          throw new Error(
+            "You cannot respond to this this event. Check event.canRespond before using respondWith"
+          );
+        }
       },
     });
 
@@ -336,10 +356,7 @@ export class AppHistory {
   private sendCurrentChangeEvent(startTime: DOMHighResTimeStamp): void {
     this.eventListeners.currentchange.forEach((listener) => {
       try {
-        listener.call(
-          this,
-          new AppHistoryCurrentChangeEvent({ detail: { startTime } })
-        );
+        listener.call(this, new AppHistoryCurrentChangeEvent({ startTime }));
       } catch (error) {}
     });
   }
@@ -411,7 +428,7 @@ class AppHistoryEntry {
 
   addEventListener(
     eventName: keyof AppHistoryEntryEventListeners,
-    callback: (event: CustomEvent) => void
+    callback: EventListener
   ): void {
     if (!this.eventListeners[eventName].includes(callback)) {
       this.eventListeners[eventName].push(callback);
@@ -454,20 +471,20 @@ class AppHistoryEntry {
   }
 }
 
-type AppHistoryEventListenerCallback = (event: AppHistoryNavigateEvent) => void;
+type AppHistoryNavigateEventListener = (event: AppHistoryNavigateEvent) => void;
 
 type AppHistoryEventListeners = {
-  navigate: Array<AppHistoryEventListenerCallback>;
-  currentchange: Array<(event: CustomEvent) => void>;
-  navigatesuccess: Array<(event: CustomEvent) => void>;
-  navigateerror: Array<(event: CustomEvent) => void>;
+  navigate: Array<AppHistoryNavigateEventListener>;
+  currentchange: Array<EventListener>;
+  navigatesuccess: Array<EventListener>;
+  navigateerror: Array<EventListener>;
 };
 
 type AppHistoryEntryEventListeners = {
-  navigateto: Array<(event: CustomEvent) => void>;
-  navigatefrom: Array<(event: CustomEvent) => void>;
-  dispose: Array<(event: CustomEvent) => void>;
-  finish: Array<(event: CustomEvent) => void>;
+  navigateto: Array<EventListener>;
+  navigatefrom: Array<EventListener>;
+  dispose: Array<EventListener>;
+  finish: Array<EventListener>;
 };
 
 type UpdatePushParam1Types =
@@ -490,26 +507,44 @@ interface AppHistoryPushOrUpdateFullOptions
   url?: string;
 }
 
-class AppHistoryNavigateEvent extends CustomEvent<{
+interface AppHistoryNavigateEventOptions extends EventInit {
+  userInitiated: boolean;
+  hashChange: boolean;
+  destination: AppHistoryEntry;
+  formData?: null;
+  info: any;
+  canRespond: boolean;
+  respondWith: (respondWithPromise: Promise<undefined>) => void;
+}
+class AppHistoryNavigateEvent extends Event {
+  constructor(eventInit: AppHistoryNavigateEventOptions) {
+    super("AppHistoryNavigateEvent", eventInit);
+    this.userInitiated = eventInit.userInitiated ?? false;
+    this.hashChange = eventInit.hashChange ?? false;
+    this.destination = eventInit.destination;
+    this.formData = eventInit.formData;
+    this.canRespond = eventInit.canRespond;
+    this.respondWith = eventInit.respondWith;
+    this.info = eventInit.info;
+  }
   readonly userInitiated: boolean;
   readonly hashChange: boolean;
   readonly destination: AppHistoryEntry;
   readonly formData?: null;
-  readonly info: any;
+  readonly info: unknown;
   readonly canRespond: boolean;
-  respondWith: () => Promise<undefined>;
-}> {
-  constructor(customEventInit: CustomEventInit) {
-    super("AppHistoryNavigateEvent", customEventInit);
-  }
+  respondWith: (respondWithPromise: Promise<undefined>) => void;
 }
 
-class AppHistoryCurrentChangeEvent extends CustomEvent<{
+interface AppHistoryCurrentChangeEventInit extends EventInit {
   startTime: DOMHighResTimeStamp;
-}> {
-  constructor(customEventInit: CustomEventInit) {
-    super("AppHistoryCurrentChangeEvent", customEventInit);
+}
+class AppHistoryCurrentChangeEvent extends Event {
+  constructor(eventInit: AppHistoryCurrentChangeEventInit) {
+    super("AppHistoryCurrentChangeEvent", eventInit);
+    this.startTime = eventInit.startTime;
   }
+  readonly startTime: DOMHighResTimeStamp;
 }
 
 class AppHistoryEntryEvent extends CustomEvent<{ target: AppHistoryEntry }> {
@@ -519,4 +554,11 @@ class AppHistoryEntryEvent extends CustomEvent<{ target: AppHistoryEntry }> {
   ) {
     super(eventName, customEventInit);
   }
+}
+
+function isAppHistoryNavigateEventListener(
+  eventName: keyof AppHistoryEventListeners,
+  listener: AppHistoryNavigateEventListener | EventListener
+): listener is AppHistoryNavigateEventListener {
+  return eventName === "navigate";
 }

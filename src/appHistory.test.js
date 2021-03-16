@@ -335,8 +335,8 @@ describe("appHistory eventListeners", () => {
       const newUrl = "/newUrl";
       await appHistory.push({ url: newUrl });
 
-      expect(navEventObject instanceof CustomEvent).toBe(true);
-      expect(navEventObject.detail.destination.url).toBe(newUrl);
+      expect(navEventObject instanceof Event).toBe(true);
+      expect(navEventObject.destination.url).toBe(newUrl);
       expect(appHistory.current.url).toBe(newUrl);
     });
 
@@ -361,7 +361,7 @@ describe("appHistory eventListeners", () => {
       let expectedInfo;
 
       appHistory.addEventListener("navigate", (evt) => {
-        expectedInfo = evt.detail.info;
+        expectedInfo = evt.info;
       });
 
       const navigateInfo = "test";
@@ -378,7 +378,7 @@ describe("appHistory eventListeners", () => {
       let expectedInfo;
 
       appHistory.addEventListener("navigate", (evt) => {
-        expectedInfo = evt.detail.info;
+        expectedInfo = evt.info;
       });
 
       const navigateInfo = "test";
@@ -431,7 +431,7 @@ describe("appHistory eventListeners", () => {
       await appHistory.push("/path");
 
       appHistory.addEventListener("navigate", (evt) => {
-        expect(evt.detail.hashChange).toBe(false);
+        expect(evt.hashChange).toBe(false);
         done();
       });
 
@@ -443,7 +443,7 @@ describe("appHistory eventListeners", () => {
       await appHistory.push("/broken");
 
       appHistory.addEventListener("navigate", (evt) => {
-        expect(evt.detail.hashChange).toBe(true);
+        expect(evt.hashChange).toBe(true);
         done();
       });
 
@@ -455,7 +455,7 @@ describe("appHistory eventListeners", () => {
       await appHistory.push("/path#test");
 
       appHistory.addEventListener("navigate", (evt) => {
-        expect(evt.detail.hashChange).toBe(false);
+        expect(evt.hashChange).toBe(false);
         done();
       });
 
@@ -470,7 +470,7 @@ describe("appHistory eventListeners", () => {
       it("should work if the promise resolves successfully", async () => {
         const appHistory = new AppHistory();
         appHistory.addEventListener("navigate", (evt) => {
-          evt.detail.respondWith(Promise.resolve());
+          evt.respondWith(Promise.resolve());
         });
 
         const newUrl = "/newUrl";
@@ -484,8 +484,8 @@ describe("appHistory eventListeners", () => {
 
         let upcomingEntry;
         appHistory.addEventListener("navigate", (evt) => {
-          upcomingEntry = evt.detail.destination;
-          evt.detail.respondWith(Promise.reject());
+          upcomingEntry = evt.destination;
+          evt.respondWith(Promise.reject());
         });
 
         const newUrl = "/newUrl";
@@ -515,9 +515,7 @@ describe("appHistory eventListeners", () => {
       await appHistory.push();
 
       expect(currentEvent).toBeTruthy();
-      expect(currentEvent.detail.startTime).toBeLessThan(
-        currentEvent.timeStamp
-      );
+      expect(currentEvent.startTime).toBeLessThan(currentEvent.timeStamp);
     });
 
     it("should fire the currentchange event for update()", async () => {
@@ -532,9 +530,7 @@ describe("appHistory eventListeners", () => {
       await appHistory.update({ state: "newState" });
 
       expect(currentEvent).toBeTruthy();
-      expect(currentEvent.detail.startTime).toBeLessThan(
-        currentEvent.timeStamp
-      );
+      expect(currentEvent.startTime).toBeLessThan(currentEvent.timeStamp);
     });
 
     it("should handle if a listener throws and continue to call other listeners", async () => {
@@ -774,7 +770,7 @@ describe("navigateTo", () => {
     await appHistory.push();
 
     appHistory.addEventListener("navigate", (evt) => {
-      expect(evt.detail.info).toBe("navigateToCalled");
+      expect(evt.info).toBe("navigateToCalled");
       done();
     });
 
@@ -834,7 +830,7 @@ describe("back", () => {
     await appHistory.push();
 
     appHistory.addEventListener("navigate", (evt) => {
-      expect(evt.detail.info).toBe("backCalled");
+      expect(evt.info).toBe("backCalled");
       done();
     });
 
@@ -900,7 +896,7 @@ describe("forward", () => {
     await appHistory.back();
 
     appHistory.addEventListener("navigate", (evt) => {
-      expect(evt.detail.info).toBe("forwardCalled");
+      expect(evt.info).toBe("forwardCalled");
       done();
     });
 
@@ -956,7 +952,7 @@ describe("events order", () => {
 
     appHistory.addEventListener("navigate", (evt) => {
       eventsList.push("navigate");
-      evt.detail.respondWith(
+      evt.respondWith(
         new Promise((resolve) => {
           setTimeout(resolve, 10);
         })
@@ -1017,7 +1013,7 @@ describe("events order", () => {
 
     appHistory.addEventListener("navigate", (evt) => {
       eventsList.push("navigate");
-      evt.detail.respondWith(
+      evt.respondWith(
         new Promise((_, reject) => {
           setTimeout(reject, 10);
         })
@@ -1072,7 +1068,7 @@ describe("events order", () => {
 
     appHistory.addEventListener("navigate", (evt) => {
       eventsList.push("navigate");
-      evt.detail.respondWith(
+      evt.respondWith(
         new Promise((respond) => {
           setTimeout(respond, 10);
         })
@@ -1124,7 +1120,7 @@ describe("events order", () => {
 
     appHistory.addEventListener("navigate", (evt) => {
       eventsList.push("navigate");
-      evt.detail.respondWith(
+      evt.respondWith(
         new Promise((_, reject) => {
           setTimeout(reject, 10);
         })
