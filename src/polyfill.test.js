@@ -53,6 +53,18 @@ describe("useBrowserPolyfill", () => {
     expect(eventListener).not.toBeCalled();
   });
 
+  it("should prevent default on anchor/area clicks so that navigation doesn't happen", async (done) => {
+    useBrowserPolyfill({ configurable: true });
+    window.addEventListener("click", (evt) => {
+      expect(evt.defaultPrevented).toBe(true);
+      done();
+    });
+
+    document.body.innerHTML = `<div><a href="/page">Page</a></div>`;
+
+    document.querySelector("a").click();
+  });
+
   it("should not error out if no param passed", () => {
     useBrowserPolyfill();
   });

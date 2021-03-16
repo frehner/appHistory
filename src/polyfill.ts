@@ -22,6 +22,7 @@ export function useBrowserPolyfill(options?: UseBrowserPolyfillOptions) {
           ? (evt.target as HTMLAreaElement | HTMLAnchorElement)
           : evt.target.closest("a") ?? evt.target.closest("area");
       if (linkTag) {
+        evt.preventDefault();
         window.appHistory.push(linkTag.href);
       }
     }
