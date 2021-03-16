@@ -1,6 +1,6 @@
 {
   "name": "@frehner/apphistory",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A polyfill for the appHistory proposal. Not ready for production",
   "main": "build/esm/appHistory.min.js",
   "types": "build/types/appHistory.d.ts",
