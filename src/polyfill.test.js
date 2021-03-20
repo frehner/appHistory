@@ -1,10 +1,11 @@
 import { useBrowserPolyfill } from "./polyfill";
 
+afterEach(() => {
+  delete window.appHistory;
+});
+
 // change these tests to use playwright?
 describe("useBrowserPolyfill", () => {
-  afterEach(() => {
-    delete window.appHistory;
-  });
   it("should not do anything if appHistory is already on window", () => {
     const fakeAppHistory = {};
     window.appHistory = fakeAppHistory;

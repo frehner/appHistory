@@ -1,5 +1,9 @@
 import { AppHistory } from "./appHistory";
 
+beforeEach(() => {
+  window.history.pushState(null, null, "/");
+});
+
 describe("appHistory constructor", () => {
   it("should initialize with a current and entries", () => {
     const appHistory = new AppHistory();
@@ -16,6 +20,8 @@ describe("appHistory constructor", () => {
 describe("AppHistoryEntry constructor", () => {
   it("should correctly set 'sameDocument'", async () => {
     const appHistory = new AppHistory();
+    expect(appHistory.current.sameDocument).toBe(true);
+
     await appHistory.push("/newUrl");
     expect(appHistory.current.sameDocument).toBe(false);
 
@@ -24,6 +30,19 @@ describe("AppHistoryEntry constructor", () => {
 
     await appHistory.push("#new-test");
     expect(appHistory.current.sameDocument).toBe(true);
+
+    // any cross-document navigations are turned into same-document navigations if respondWith receives a promise
+    let navigateEvent = null;
+    appHistory.onnavigate = (evt) => {
+      navigateEvent = evt;
+      evt.respondWith(Promise.resolve());
+    };
+    await appHistory.push("/url2");
+    expect(navigateEvent.destination.sameDocument).toBe(true);
+    expect(appHistory.current.sameDocument).toBe(true);
+    expect(appHistory.current.url).toBe("/url2");
+
+    appHistory.onnavigate = null;
 
     MockLocation.mock();
 
@@ -135,7 +154,7 @@ describe("update", () => {
     await appHistory.update({ url: "/newTest1" });
 
     expect(appHistory.entries.map((entry) => entry.url)).toEqual([
-      "TODO FIX DEFAULT URL",
+      "http://localhost/",
       "/newTest1",
       "/test2",
     ]);
@@ -190,9 +209,7 @@ describe("push", () => {
     expect(appHistory.current.getState()).toBe("newState");
   });
 
-  it.todo(
-    "should take in a callback function that can return AppHistoryEntryFullOptions. Skipping for now because of unclear spec"
-  );
+  it.todo("updates in https://github.com/WICG/app-history/pull/68/files");
 
   it("only state: should overwrite the state and copy the previous URL", async () => {
     const appHistory = new AppHistory();
@@ -244,7 +261,7 @@ describe("push", () => {
 
     // this test will have to change when I actually put in a sane url in the constructor
     expect(appHistory.entries.map((entry) => entry.url)).toEqual([
-      "TODO FIX DEFAULT URL",
+      "http://localhost/",
       "/temp1",
       "/temp2",
     ]);
@@ -267,7 +284,7 @@ describe("push", () => {
     expect(appHistory.entries.length).toBe(2);
     expect(appHistory.current.url).toBe("/temp3");
     expect(appHistory.entries.map((entry) => entry.url)).toEqual([
-      "TODO FIX DEFAULT URL",
+      "http://localhost/",
       "/temp3",
     ]);
   });
@@ -312,9 +329,6 @@ describe("push", () => {
 
 describe("appHistory eventListeners", () => {
   describe("navigate", () => {
-    beforeEach(() => {
-      window.history.pushState(null, "", "/");
-    });
     it("should add an event listener", async (done) => {
       const appHistory = new AppHistory();
 
@@ -389,7 +403,7 @@ describe("appHistory eventListeners", () => {
       expect(expectedInfo).toEqual(navigateInfo);
     });
 
-    it("should handle if a listener throws and continue to call other listeners", async () => {
+    it.skip("should handle if a listener throws and continue to call other listeners", async () => {
       const appHistory = new AppHistory();
 
       const listenerEvents = [];
@@ -403,8 +417,6 @@ describe("appHistory eventListeners", () => {
         listenerEvents.push("2");
       });
 
-      await appHistory.push();
-
       expect(listenerEvents).toEqual(["1", "2"]);
     });
 
@@ -413,13 +425,13 @@ describe("appHistory eventListeners", () => {
 
       let timesCalled = 0;
 
-      appHistory.onnavigate(() => {
+      appHistory.onnavigate = () => {
         timesCalled++;
-      });
+      };
 
-      appHistory.onnavigate(() => {
+      appHistory.onnavigate = () => {
         timesCalled++;
-      });
+      };
 
       await appHistory.push();
 
@@ -462,9 +474,33 @@ describe("appHistory eventListeners", () => {
       await appHistory.push("/path?search=new#test");
     });
 
+    it.skip("should throw a SecurityError DOMError if you use respondWith() when canRespond=false", async (done) => {
+      const appHistory = new AppHistory();
+
+      appHistory.addEventListener("navigate", (evt) => {
+        expect(evt.canRespond).toBe(false);
+        expect(() => evt.respondWith(Promise.resolve())).rejects.toThrowError(
+          new DOMException()
+        );
+        done();
+      });
+
+      window.onerror = (err) => {
+        console.log("caught");
+      };
+
+      MockLocation.mock();
+      await appHistory.push("https://example.com");
+      MockLocation.restore();
+    });
+
     it.todo("add a case for when search params come after the hash?");
 
-    it.todo("all the 'canRespond' cases");
+    it.todo(
+      "all the 'canRespond' cases from https://github.com/WICG/app-history#appendix-types-of-navigations"
+    );
+
+    it.todo("add the abortSignal");
 
     describe("respondWith", () => {
       it("should work if the promise resolves successfully", async () => {
@@ -533,7 +569,7 @@ describe("appHistory eventListeners", () => {
       expect(currentEvent.startTime).toBeLessThan(currentEvent.timeStamp);
     });
 
-    it("should handle if a listener throws and continue to call other listeners", async () => {
+    it.skip("should handle if a listener throws and continue to call other listeners", async () => {
       const appHistory = new AppHistory();
 
       const listenerEvents = [];
@@ -557,13 +593,13 @@ describe("appHistory eventListeners", () => {
 
       let timesCalled = 0;
 
-      appHistory.oncurrentchange(() => {
+      appHistory.oncurrentchange = () => {
         timesCalled++;
-      });
+      };
 
-      appHistory.oncurrentchange(() => {
+      appHistory.oncurrentchange = () => {
         timesCalled++;
-      });
+      };
 
       await appHistory.push();
 
@@ -702,15 +738,15 @@ describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per
     it("should fire finish on successful push navigation", async (done) => {
       const appHistory = new AppHistory();
 
-      appHistory.onnavigate((evt) => {
+      appHistory.onnavigate = (evt) => {
         evt.respondWith(
           new Promise((resolve) => {
             setTimeout(resolve, 10);
           })
         );
-      });
+      };
 
-      const pushPromise = appHistory.push("newUrl");
+      const pushPromise = appHistory.push("/newUrl");
 
       appHistory.current.addEventListener("finish", () => {
         done();

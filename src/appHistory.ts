@@ -2,7 +2,7 @@ import { fakeRandomId } from "./helpers";
 
 export class AppHistory {
   constructor() {
-    this.current = new AppHistoryEntry({ url: "TODO FIX DEFAULT URL" });
+    this.current = new AppHistoryEntry({ url: window.location.href });
     this.current.__updateEntry(undefined, 0);
     this.entries = [this.current];
     this.canGoBack = false;
@@ -184,25 +184,25 @@ export class AppHistory {
     navigateerror: null,
   };
 
-  onnavigate(callback: AppHistoryNavigateEventListener): void {
+  set onnavigate(callback: AppHistoryNavigateEventListener) {
     this.addOnEventListener("navigate", callback);
   }
 
-  oncurrentchange(callback: EventListener): void {
+  set oncurrentchange(callback: EventListener) {
     this.addOnEventListener("currentchange", callback);
   }
 
-  onnavigatesuccess(callback: EventListener): void {
+  set onnavigatesuccess(callback: EventListener) {
     this.addOnEventListener("navigatesuccess", callback);
   }
 
-  onnavigateerror(callback: EventListener): void {
+  set onnavigateerror(callback: EventListener) {
     this.addOnEventListener("navigateerror", callback);
   }
 
   private addOnEventListener(
     eventName: keyof AppHistoryEventListeners,
-    callback: AppHistoryNavigateEventListener | EventListener
+    callback: AppHistoryNavigateEventListener | EventListener | null
   ) {
     if (this.onEventListeners[eventName]) {
       if (eventName === "navigate") {
@@ -218,7 +218,9 @@ export class AppHistory {
       }
     }
     this.onEventListeners[eventName] = callback;
-    this.addEventListener(eventName, callback);
+    if (callback) {
+      this.addEventListener(eventName, callback);
+    }
   }
 
   addEventListener(
@@ -330,10 +332,12 @@ export class AppHistory {
       canRespond,
       respondWith: (respondWithPromise: Promise<undefined>): void => {
         if (canRespond) {
+          destinationEntry.sameDocument = true;
           respondWithResponses.push(respondWithPromise);
         } else {
-          throw new Error(
-            "You cannot respond to this this event. Check event.canRespond before using respondWith"
+          throw new DOMException(
+            "Cannot call AppHistoryNavigateEvent.respondWith() if AppHistoryNavigateEvent.canRespond is false",
+            "SecurityError"
           );
         }
       },
@@ -342,7 +346,11 @@ export class AppHistory {
     this.eventListeners.navigate.forEach((listener) => {
       try {
         listener.call(this, navigateEvent);
-      } catch (error) {}
+      } catch (error) {
+        setTimeout(() => {
+          throw error;
+        });
+      }
     });
 
     if (navigateEvent.defaultPrevented) {
@@ -357,7 +365,11 @@ export class AppHistory {
     this.eventListeners.currentchange.forEach((listener) => {
       try {
         listener.call(this, new AppHistoryCurrentChangeEvent({ startTime }));
-      } catch (error) {}
+      } catch (error) {
+        setTimeout(() => {
+          throw error;
+        });
+      }
     });
   }
 
@@ -365,7 +377,11 @@ export class AppHistory {
     this.eventListeners.navigatesuccess.forEach((listener) => {
       try {
         listener(new CustomEvent("TODO figure out the correct event"));
-      } catch (error) {}
+      } catch (error) {
+        setTimeout(() => {
+          throw error;
+        });
+      }
     });
   }
 
@@ -377,7 +393,11 @@ export class AppHistory {
             detail: { error },
           })
         );
-      } catch (error) {}
+      } catch (error) {
+        setTimeout(() => {
+          throw error;
+        });
+      }
     });
   }
 }
@@ -395,7 +415,8 @@ class AppHistoryEntry {
     this.index = -1;
     this.finished = false;
 
-    const upcomingUrl = options?.url ?? previousEntry?.url ?? "";
+    const upcomingUrl =
+      options?.url ?? previousEntry?.url ?? window.location.pathname;
     this.url = upcomingUrl;
 
     const upcomingUrlObj = new URL(
@@ -466,7 +487,11 @@ class AppHistoryEntry {
     this.eventListeners[eventName].map((listener) => {
       try {
         listener(newEvent);
-      } catch (error) {}
+      } catch (error) {
+        setTimeout(() => {
+          throw error;
+        });
+      }
     });
   }
 }
