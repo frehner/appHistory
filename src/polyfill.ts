@@ -14,19 +14,25 @@ export function useBrowserPolyfill(options?: UseBrowserPolyfillOptions) {
     configurable: options?.configurable ?? false,
   });
 
-  window.addEventListener("click", (evt) => {
-    if (evt.target && evt.target instanceof HTMLElement) {
-      // on anchor/area clicks, fire 'appHistory.push()'
-      const linkTag =
-        evt.target.nodeName === "A" || evt.target.nodeName === "AREA"
-          ? (evt.target as HTMLAreaElement | HTMLAnchorElement)
-          : evt.target.closest("a") ?? evt.target.closest("area");
-      if (linkTag) {
-        evt.preventDefault();
-        window.appHistory.push(linkTag.href);
-      }
+  window.addEventListener("click", windowClickHandler);
+}
+
+function windowClickHandler(evt: Event) {
+  if (evt.target && evt.target instanceof HTMLElement) {
+    // on anchor/area clicks, fire 'appHistory.push()'
+    const linkTag =
+      evt.target.nodeName === "A" || evt.target.nodeName === "AREA"
+        ? (evt.target as HTMLAreaElement | HTMLAnchorElement)
+        : evt.target.closest("a") ?? evt.target.closest("area");
+    if (linkTag) {
+      evt.preventDefault();
+      window.appHistory.push(linkTag.href).catch((err) => {
+        setTimeout(() => {
+          throw err;
+        });
+      });
     }
-  });
+  }
 }
 
 declare global {

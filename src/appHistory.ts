@@ -3,6 +3,7 @@ import { fakeRandomId } from "./helpers";
 export class AppHistory {
   constructor() {
     this.current = new AppHistoryEntry({ url: window.location.href });
+    this.current.finished = true;
     this.current.__updateEntry(undefined, 0);
     this.entries = [this.current];
     this.canGoBack = false;
@@ -43,9 +44,6 @@ export class AppHistory {
         break;
       }
 
-      // TODO: add case for 'function'
-      // waiting on spec clarity to implement though
-
       default:
         break;
     }
@@ -53,9 +51,6 @@ export class AppHistory {
     return options;
   }
 
-  async update(
-    callback?: () => AppHistoryPushOrUpdateFullOptions
-  ): Promise<undefined>;
   async update(
     fullOptions?: AppHistoryPushOrUpdateFullOptions
   ): Promise<undefined>;
@@ -99,9 +94,6 @@ export class AppHistory {
   }
 
   async push(
-    callback?: () => AppHistoryPushOrUpdateFullOptions
-  ): Promise<undefined>;
-  async push(
     fullOptions?: AppHistoryPushOrUpdateFullOptions
   ): Promise<undefined>;
   async push(
@@ -112,6 +104,8 @@ export class AppHistory {
     param1?: UpdatePushParam1Types,
     param2?: AppHistoryPushOrUpdateOptions
   ) {
+    const previousEntry = this.current;
+
     // used in the currentchange event
     const startTime = performance.now();
 
@@ -125,9 +119,8 @@ export class AppHistory {
     );
 
     this.current.__fireEventListenersForEvent("navigatefrom");
-    const oldCurrent = this.current;
-    const oldCurrentIndex = this.entries.findIndex(
-      (entry) => entry.key === oldCurrent.key
+    const previousEntryIndex = this.entries.findIndex(
+      (entry) => entry.key === previousEntry.key
     );
 
     const upcomingURL = new URL(
@@ -147,13 +140,29 @@ export class AppHistory {
     this.sendCurrentChangeEvent(startTime);
     this.current.__fireEventListenersForEvent("navigateto");
 
-    this.entries.slice(oldCurrentIndex + 1).forEach((disposedEntry) => {
+    if (!previousEntry.finished) {
+      // we fire the abort here for previous entry.
+      previousEntry.__fireAbortForAssociatedEvent();
+    }
+
+    let thisEntrysAbortError: DOMException | undefined;
+    upcomingEntry
+      .__getAssociatedAbortSignal()
+      ?.addEventListener("abort", () => {
+        thisEntrysAbortError = new DOMException(
+          `A new entry was added before the promises passed to respondWith() resolved for entry with url ${upcomingEntry.url}`,
+          "AbortError"
+        );
+        this.sendNavigateErrorEvent(thisEntrysAbortError);
+      });
+
+    this.entries.slice(previousEntryIndex + 1).forEach((disposedEntry) => {
       disposedEntry.__updateEntry(undefined, -1);
       disposedEntry.__fireEventListenersForEvent("dispose");
     });
 
     this.entries = [
-      ...this.entries.slice(0, oldCurrentIndex + 1),
+      ...this.entries.slice(0, previousEntryIndex + 1),
       this.current,
     ].map((entry, entryIndex) => {
       entry.__updateEntry(undefined, entryIndex);
@@ -162,11 +171,18 @@ export class AppHistory {
 
     return Promise.all(respondWithPromiseArray)
       .then(() => {
+        if (thisEntrysAbortError) {
+          throw thisEntrysAbortError;
+        }
         upcomingEntry.finished = true;
         upcomingEntry.__fireEventListenersForEvent("finish");
         this.sendNavigateSuccessEvent();
       })
       .catch((error) => {
+        if (error && error === thisEntrysAbortError) {
+          // abort errors don't change finished or fire the finish event. the navigateError event was already fired
+          throw error;
+        }
         upcomingEntry.finished = true;
         upcomingEntry.__fireEventListenersForEvent("finish");
         this.sendNavigateErrorEvent(error);
@@ -343,6 +359,9 @@ export class AppHistory {
       },
     });
 
+    // associate the event to the entry so that we can call the abort controller if necessary in the future
+    destinationEntry.__associateNavigateEvent(navigateEvent);
+
     this.eventListeners.navigate.forEach((listener) => {
       try {
         listener.call(this, navigateEvent);
@@ -434,6 +453,7 @@ class AppHistoryEntry {
   index: number;
   private _state: any | null;
   finished: boolean;
+  private latestNavigateEvent?: AppHistoryNavigateEvent;
 
   private eventListeners: AppHistoryEntryEventListeners = {
     navigateto: [],
@@ -494,6 +514,21 @@ class AppHistoryEntry {
       }
     });
   }
+
+  /** DO NOT USE; for internal purposes only */
+  __associateNavigateEvent(event: AppHistoryNavigateEvent): void {
+    this.latestNavigateEvent = event;
+  }
+
+  /** DO NOT USE; for internal purposes only */
+  __fireAbortForAssociatedEvent(): void {
+    this.latestNavigateEvent?.__abort();
+  }
+
+  /** DO NOT USE; for internal purposes only */
+  __getAssociatedAbortSignal(): AbortSignal | undefined {
+    return this.latestNavigateEvent?.signal;
+  }
 }
 
 type AppHistoryNavigateEventListener = (event: AppHistoryNavigateEvent) => void;
@@ -512,10 +547,7 @@ type AppHistoryEntryEventListeners = {
   finish: Array<EventListener>;
 };
 
-type UpdatePushParam1Types =
-  | string
-  | (() => AppHistoryPushOrUpdateFullOptions)
-  | AppHistoryPushOrUpdateFullOptions;
+type UpdatePushParam1Types = string | AppHistoryPushOrUpdateFullOptions;
 
 export type AppHistoryEntryKey = string;
 
@@ -551,6 +583,8 @@ class AppHistoryNavigateEvent extends Event {
     this.canRespond = eventInit.canRespond;
     this.respondWith = eventInit.respondWith;
     this.info = eventInit.info;
+    this.abortController = new AbortController();
+    this.signal = this.abortController.signal;
   }
   readonly userInitiated: boolean;
   readonly hashChange: boolean;
@@ -559,6 +593,13 @@ class AppHistoryNavigateEvent extends Event {
   readonly info: unknown;
   readonly canRespond: boolean;
   respondWith: (respondWithPromise: Promise<undefined>) => void;
+  readonly signal: AbortSignal;
+  private abortController: AbortController;
+
+  /** DO NOT USE; for internal purposes only */
+  __abort(): void {
+    this.abortController.abort();
+  }
 }
 
 interface AppHistoryCurrentChangeEventInit extends EventInit {

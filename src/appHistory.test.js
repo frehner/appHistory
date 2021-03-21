@@ -494,13 +494,60 @@ describe("appHistory eventListeners", () => {
       MockLocation.restore();
     });
 
+    it("should have a signal that isn't aborted by default", async (done) => {
+      const appHistory = new AppHistory();
+
+      appHistory.onnavigate = (evt) => {
+        expect(evt.signal.aborted).toBe(false);
+        done();
+      };
+
+      await appHistory.push("/test");
+    });
+
+    it("should fire abort if another push event happened while the previous respondWith promise is in flight", async (done) => {
+      const appHistory = new AppHistory();
+
+      let timesCalled = 0;
+      appHistory.onnavigate = (evt) => {
+        evt.respondWith(
+          (async () => {
+            if (timesCalled === 0) {
+              timesCalled++;
+              await new Promise((resolve) => setTimeout(resolve, 10));
+              expect(evt.signal.aborted).toBe(true);
+              expect(timesCalled).toBe(2);
+              done();
+            } else {
+              timesCalled++;
+            }
+          })()
+        );
+      };
+
+      let slowEntry;
+      try {
+        // intentionally don't call await here so we can fire the next push before this one finishes
+        // however, the promise will reject, so we need to handle that
+        const slowPromise = appHistory.push("/slowUrl");
+        slowEntry = appHistory.current;
+
+        await new Promise((resolve) => setTimeout(resolve));
+        await appHistory.push("/newerUrl");
+        expect(appHistory.current.url).toBe("/newerUrl");
+
+        await slowPromise;
+      } catch (error) {
+        expect(error).toBeInstanceOf(DOMException);
+        expect(slowEntry.finished).toBe(false);
+      }
+    });
+
     it.todo("add a case for when search params come after the hash?");
 
     it.todo(
       "all the 'canRespond' cases from https://github.com/WICG/app-history#appendix-types-of-navigations"
     );
-
-    it.todo("add the abortSignal");
 
     describe("respondWith", () => {
       it("should work if the promise resolves successfully", async () => {
