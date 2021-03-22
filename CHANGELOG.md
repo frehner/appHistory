@@ -1,5 +1,11 @@
 # AppHistory
 
+## unreleased
+
+- polyfill onclick error handler so it doesn't crash
+- change TS types from any to unknown
+- add package exports
+
 ## 0.0.5
 
 - add signal to navigate event and fire abort if a new entry is added before the promises given to respondWith() resolve. The promise returned from appHistory.push will reject, and entry.finished will remain false

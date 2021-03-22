@@ -17,7 +17,7 @@ export function useBrowserPolyfill(options?: UseBrowserPolyfillOptions) {
   window.addEventListener("click", windowClickHandler);
 }
 
-function windowClickHandler(evt: Event) {
+function windowClickHandler(evt: Event): void {
   if (evt.target && evt.target instanceof HTMLElement) {
     // on anchor/area clicks, fire 'appHistory.push()'
     const linkTag =
@@ -26,11 +26,16 @@ function windowClickHandler(evt: Event) {
         : evt.target.closest("a") ?? evt.target.closest("area");
     if (linkTag) {
       evt.preventDefault();
-      window.appHistory.push(linkTag.href).catch((err) => {
-        setTimeout(() => {
-          throw err;
+      window.appHistory
+        .push({
+          url: linkTag.href,
+          navigateInfo: { type: `${linkTag.nodeName.toLowerCase()}-click` },
+        })
+        .catch((err) => {
+          setTimeout(() => {
+            throw err;
+          });
         });
-      });
     }
   }
 }

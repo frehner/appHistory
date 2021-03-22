@@ -128,7 +128,7 @@ export class AppHistory {
       window.location.origin + window.location.pathname
     );
     if (upcomingURL.origin === window.location.origin) {
-      window.history.pushState(null, "", upcomingEntry.url);
+      window.history.pushState(options?.state, "", upcomingEntry.url);
     } else {
       window.location.assign(upcomingEntry.url);
     }
@@ -326,7 +326,7 @@ export class AppHistory {
 
   private sendNavigateEvent(
     destinationEntry: AppHistoryEntry,
-    info?: any
+    info?: unknown
   ): Array<Promise<undefined>> {
     const respondWithResponses: Array<Promise<undefined>> = [];
 
@@ -451,7 +451,7 @@ class AppHistoryEntry {
   url: string;
   sameDocument: boolean;
   index: number;
-  private _state: any | null;
+  private _state: unknown;
   finished: boolean;
   private latestNavigateEvent?: AppHistoryNavigateEvent;
 
@@ -463,7 +463,7 @@ class AppHistoryEntry {
   };
 
   /** Provides a JSON.parse(JSON.stringify()) copy of the Entry's state.  */
-  getState(): any | null {
+  getState(): unknown {
     return JSON.parse(JSON.stringify(this._state));
   }
 
@@ -552,11 +552,11 @@ type UpdatePushParam1Types = string | AppHistoryPushOrUpdateFullOptions;
 export type AppHistoryEntryKey = string;
 
 interface AppHistoryNavigationOptions {
-  navigateInfo?: any;
+  navigateInfo?: unknown;
 }
 
 interface AppHistoryPushOrUpdateOptions extends AppHistoryNavigationOptions {
-  state?: any | null;
+  state?: unknown;
 }
 
 interface AppHistoryPushOrUpdateFullOptions
@@ -569,7 +569,7 @@ interface AppHistoryNavigateEventOptions extends EventInit {
   hashChange: boolean;
   destination: AppHistoryEntry;
   formData?: null;
-  info: any;
+  info: unknown;
   canRespond: boolean;
   respondWith: (respondWithPromise: Promise<undefined>) => void;
 }
