@@ -17,7 +17,7 @@ import { useBrowerPolyfill } from "@frehner/apphistory";
 userBrowserPolyfill();
 
 // appHistory is now on the window
-window.appHistory.push();
+window.appHistory.navigate();
 ```
 
 Alternatively, you can create your own instance of AppHistory:
@@ -27,8 +27,13 @@ import { AppHistory } from "@frehner/apphistory";
 const appHistory = new AppHistory();
 
 // use your own instance of appHistory, without any events from things like anchor tags
-appHistory.push();
+appHistory.navigate();
 ```
+
+You can also get a ready-to-go ESM version from
+
+- JSDelivr https://cdn.jsdelivr.net/npm/@frehner/apphistory/build/esm/appHistory.min.js
+- unpkg https://unpkg.com/@frehner/apphistory/build/esm/appHistory.min.js
 
 ## Differences
 

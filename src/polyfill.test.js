@@ -14,7 +14,7 @@ describe("useBrowserPolyfill", () => {
     expect(window.appHistory).toBe(fakeAppHistory);
   });
 
-  it("should fire push on 'anchor' clicks", async (done) => {
+  it("should fire navigate on 'anchor' clicks", async (done) => {
     useBrowserPolyfill({ configurable: true });
 
     window.appHistory.addEventListener("navigate", (evt) => {
@@ -27,7 +27,7 @@ describe("useBrowserPolyfill", () => {
     document.querySelector("a").click();
   });
 
-  it("should fire push on 'anchor' clicks, even if the target isn't an anchor", async (done) => {
+  it("should fire navigate on 'anchor' clicks, even if the target isn't an anchor", async (done) => {
     useBrowserPolyfill({ configurable: true });
 
     window.appHistory.addEventListener("navigate", (evt) => {
@@ -40,7 +40,7 @@ describe("useBrowserPolyfill", () => {
     document.querySelector("span").click();
   });
 
-  it("should not fire push on normal clicks", async () => {
+  it("should not fire navigate on normal clicks", async () => {
     useBrowserPolyfill({ configurable: true });
 
     const eventListener = jest.fn();
