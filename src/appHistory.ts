@@ -23,7 +23,7 @@ export class AppHistory {
 
   private getOptionsFromParams(
     param1?: UpdatePushParam1Types,
-    param2?: AppHistoryPushOrUpdateOptions
+    param2?: AppHistoryNavigateOptions
   ): AppHistoryPushOrUpdateFullOptions | undefined {
     let options: AppHistoryPushOrUpdateFullOptions | undefined;
     switch (typeof param1) {
@@ -51,21 +51,35 @@ export class AppHistory {
     return options;
   }
 
-  async update(
+  async navigate(
     fullOptions?: AppHistoryPushOrUpdateFullOptions
   ): Promise<undefined>;
-  async update(
+  async navigate(
     url?: string,
-    options?: AppHistoryPushOrUpdateOptions
+    options?: AppHistoryNavigateOptions
   ): Promise<undefined>;
-  async update(
+  async navigate(
     param1?: UpdatePushParam1Types,
-    param2?: AppHistoryPushOrUpdateOptions
+    param2?: AppHistoryNavigateOptions
+  ) {
+    const options = this.getOptionsFromParams(param1, param2);
+
+    if (options?.replace) {
+      return this.updateNavigation(options);
+    } else {
+      return this.pushNavigation(options);
+    }
+  }
+
+  private async updateNavigation(
+    options: AppHistoryPushOrUpdateFullOptions | undefined
   ) {
     // used in currentchange event
     const startTime = performance.now();
 
-    const options = this.getOptionsFromParams(param1, param2);
+    if (options?.replace && Object.keys(options).length === 1) {
+      throw new Error("Must include more options than just {'replace: true'}");
+    }
 
     // location.href updates here
 
@@ -93,24 +107,13 @@ export class AppHistory {
       });
   }
 
-  async push(
-    fullOptions?: AppHistoryPushOrUpdateFullOptions
-  ): Promise<undefined>;
-  async push(
-    url?: string,
-    options?: AppHistoryPushOrUpdateOptions
-  ): Promise<undefined>;
-  async push(
-    param1?: UpdatePushParam1Types,
-    param2?: AppHistoryPushOrUpdateOptions
+  private async pushNavigation(
+    options: AppHistoryPushOrUpdateFullOptions | undefined
   ) {
-    const previousEntry = this.current;
-
     // used in the currentchange event
     const startTime = performance.now();
 
-    const options = this.getOptionsFromParams(param1, param2);
-
+    const previousEntry = this.current;
     const upcomingEntry = new AppHistoryEntry(options, this.current);
 
     const respondWithPromiseArray = this.sendNavigateEvent(
@@ -265,7 +268,7 @@ export class AppHistory {
     throw new Error("appHistory does not listen for that event at this time");
   }
 
-  async navigateTo(
+  async goTo(
     key: AppHistoryEntryKey,
     navigationOptions?: AppHistoryNavigationOptions
   ): Promise<undefined> {
@@ -555,12 +558,12 @@ interface AppHistoryNavigationOptions {
   navigateInfo?: unknown;
 }
 
-interface AppHistoryPushOrUpdateOptions extends AppHistoryNavigationOptions {
+interface AppHistoryNavigateOptions extends AppHistoryNavigationOptions {
   state?: unknown;
+  replace?: boolean;
 }
 
-interface AppHistoryPushOrUpdateFullOptions
-  extends AppHistoryPushOrUpdateOptions {
+interface AppHistoryPushOrUpdateFullOptions extends AppHistoryNavigateOptions {
   url?: string;
 }
 

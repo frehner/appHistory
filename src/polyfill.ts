@@ -19,7 +19,7 @@ export function useBrowserPolyfill(options?: UseBrowserPolyfillOptions) {
 
 function windowClickHandler(evt: Event): void {
   if (evt.target && evt.target instanceof HTMLElement) {
-    // on anchor/area clicks, fire 'appHistory.push()'
+    // on anchor/area clicks, fire 'appHistory.navigate()'
     const linkTag =
       evt.target.nodeName === "A" || evt.target.nodeName === "AREA"
         ? (evt.target as HTMLAreaElement | HTMLAnchorElement)
@@ -27,7 +27,7 @@ function windowClickHandler(evt: Event): void {
     if (linkTag) {
       evt.preventDefault();
       window.appHistory
-        .push({
+        .navigate({
           url: linkTag.href,
           navigateInfo: { type: `${linkTag.nodeName.toLowerCase()}-click` },
         })

@@ -1,8 +1,11 @@
 # AppHistory
 
-## unreleased
+## 0.0.6
 
-- polyfill onclick error handler so it doesn't crash
+- `appHistory.push()` is now `appHistory.navigate()`
+- `appHistory.update()` is now `appHistory.navigate({replace: true})`
+- `appHistory.navigateTo()` is now `appHistory.goTo()`
+- add a catch to polyfill's onclick handler so it doesn't crash
 - change TS types from any to unknown
 - add package exports
 

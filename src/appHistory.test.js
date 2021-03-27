@@ -22,13 +22,13 @@ describe("AppHistoryEntry constructor", () => {
     const appHistory = new AppHistory();
     expect(appHistory.current.sameDocument).toBe(true);
 
-    await appHistory.push("/newUrl");
+    await appHistory.navigate("/newUrl");
     expect(appHistory.current.sameDocument).toBe(false);
 
-    await appHistory.push("/newUrl#test");
+    await appHistory.navigate("/newUrl#test");
     expect(appHistory.current.sameDocument).toBe(true);
 
-    await appHistory.push("#new-test");
+    await appHistory.navigate("#new-test");
     expect(appHistory.current.sameDocument).toBe(true);
 
     // any cross-document navigations are turned into same-document navigations if respondWith receives a promise
@@ -37,7 +37,7 @@ describe("AppHistoryEntry constructor", () => {
       navigateEvent = evt;
       evt.respondWith(Promise.resolve());
     };
-    await appHistory.push("/url2");
+    await appHistory.navigate("/url2");
     expect(navigateEvent.destination.sameDocument).toBe(true);
     expect(appHistory.current.sameDocument).toBe(true);
     expect(appHistory.current.url).toBe("/url2");
@@ -46,7 +46,7 @@ describe("AppHistoryEntry constructor", () => {
 
     MockLocation.mock();
 
-    await appHistory.push("https://example.com");
+    await appHistory.navigate("https://example.com");
     expect(appHistory.current.sameDocument).toBe(false);
     expect(window.location.assign.mock.calls.length).toBe(1);
 
@@ -54,16 +54,16 @@ describe("AppHistoryEntry constructor", () => {
   });
 });
 
-describe("update", () => {
+describe("navigate with replace: true", () => {
   it("only url: updates url but not the state", async () => {
     const appHistory = new AppHistory();
-    await appHistory.update({ state: "test" });
+    await appHistory.navigate({ state: "test", replace: true });
 
     const { url: oldUrl } = appHistory.current;
     const oldState = appHistory.current.getState();
 
     const updatedUrl = "/newUrl";
-    await appHistory.update({ url: updatedUrl });
+    await appHistory.navigate({ url: updatedUrl, replace: true });
 
     const { url: newUrl } = appHistory.current;
     const newState = appHistory.current.getState();
@@ -80,7 +80,7 @@ describe("update", () => {
     const oldState = appHistory.current.getState();
 
     const updatedState = "newState";
-    await appHistory.update({ state: updatedState });
+    await appHistory.navigate({ state: updatedState, replace: true });
 
     const { url: newUrl } = appHistory.current;
     const newState = appHistory.current.getState();
@@ -92,12 +92,12 @@ describe("update", () => {
 
   it("can null out the state", async () => {
     const appHistory = new AppHistory();
-    await appHistory.update({ state: "before" });
+    await appHistory.navigate({ state: "before", replace: true });
 
     const oldState = appHistory.current.getState();
 
     const updatedState = null;
-    await appHistory.update({ state: updatedState });
+    await appHistory.navigate({ state: updatedState, replace: true });
 
     const newState = appHistory.current.getState();
 
@@ -113,7 +113,11 @@ describe("update", () => {
 
     const updatedState = "newState";
     const updatedUrl = "/newUrl";
-    await appHistory.update({ state: updatedState, url: updatedUrl });
+    await appHistory.navigate({
+      state: updatedState,
+      url: updatedUrl,
+      replace: true,
+    });
 
     const { url: newUrl } = appHistory.current;
     const newState = appHistory.current.getState();
@@ -131,7 +135,7 @@ describe("update", () => {
     const oldEntries = appHistory.entries;
 
     const newState = "newState";
-    await appHistory.update({ state: newState });
+    await appHistory.navigate({ state: newState, replace: true });
 
     const newEntries = appHistory.entries;
 
@@ -144,14 +148,14 @@ describe("update", () => {
     const appHistory = new AppHistory();
 
     // add some entries
-    await appHistory.push({ url: "/test1" });
+    await appHistory.navigate({ url: "/test1" });
     const test1 = appHistory.current;
-    await appHistory.push({ url: "/test2" });
+    await appHistory.navigate({ url: "/test2" });
 
     await appHistory.back();
     expect(test1).toEqual(appHistory.current);
 
-    await appHistory.update({ url: "/newTest1" });
+    await appHistory.navigate({ url: "/newTest1", replace: true });
 
     expect(appHistory.entries.map((entry) => entry.url)).toEqual([
       "http://localhost/",
@@ -165,15 +169,15 @@ describe("update", () => {
     const key1 = appHistory.current.key;
 
     // add some entries
-    await appHistory.push({ url: "/test1" });
+    await appHistory.navigate({ url: "/test1" });
     const key2 = appHistory.current.key;
-    await appHistory.push({ url: "/test2" });
+    await appHistory.navigate({ url: "/test2" });
     const key3 = appHistory.current.key;
 
     await appHistory.back();
     expect(key2).toEqual(appHistory.current.key);
 
-    await appHistory.update({ url: "/newTest1" });
+    await appHistory.navigate({ url: "/newTest1", replace: true });
 
     expect(appHistory.entries.map((entry) => entry.key)).toEqual([
       key1,
@@ -183,18 +187,21 @@ describe("update", () => {
     expect(appHistory.current.url).toBe("/newTest1");
   });
 
-  it.todo(
-    "should not allow 'update()' with no params. https://github.com/WICG/app-history/issues/52"
-  );
+  it("should not allow navigate({replace: true}) with no other options", async () => {
+    const appHistory = new AppHistory();
+    await expect(appHistory.navigate({ replace: true })).rejects.toThrowError(
+      "Must include more options than just {'replace: true'}"
+    );
+  });
 });
 
 describe("push", () => {
   it("no options: adds an entry with the same url but null-ed out state", async () => {
     const appHistory = new AppHistory();
-    await appHistory.update({ state: "test" });
+    await appHistory.navigate({ state: "test", replace: true });
     const oldEntry = appHistory.current;
 
-    await appHistory.push();
+    await appHistory.navigate();
 
     expect(appHistory.current.getState()).toBeNull();
     expect(appHistory.current.getState()).not.toEqual(oldEntry.getState());
@@ -203,7 +210,7 @@ describe("push", () => {
 
   it("should take in a url and options as two params", async () => {
     const appHistory = new AppHistory();
-    await appHistory.push("/newUrl", { state: "newState" });
+    await appHistory.navigate("/newUrl", { state: "newState" });
 
     expect(appHistory.current.url).toBe("/newUrl");
     expect(appHistory.current.getState()).toBe("newState");
@@ -216,7 +223,7 @@ describe("push", () => {
     const oldEntry = appHistory.current;
 
     const newState = "newState";
-    await appHistory.push({ state: newState });
+    await appHistory.navigate({ state: newState });
 
     expect(appHistory.current.getState()).toEqual(newState);
     expect(appHistory.current.getState()).not.toEqual(oldEntry.getState());
@@ -226,11 +233,11 @@ describe("push", () => {
 
   it("only url: should set a new url and null out the state", async () => {
     const appHistory = new AppHistory();
-    await appHistory.update({ state: "test" });
+    await appHistory.navigate({ state: "test", replace: true });
     const oldEntry = appHistory.current;
 
     const newUrl = "newUrl";
-    await appHistory.push({ url: newUrl });
+    await appHistory.navigate({ url: newUrl });
 
     expect(appHistory.current.url).toEqual(newUrl);
     expect(appHistory.current.url).not.toEqual(oldEntry.url);
@@ -245,7 +252,7 @@ describe("push", () => {
 
     const newUrl = "newUrl";
     const newState = "test";
-    await appHistory.push({ url: newUrl, state: newState });
+    await appHistory.navigate({ url: newUrl, state: newState });
 
     expect(appHistory.current.url).toEqual(newUrl);
     expect(appHistory.current.url).not.toEqual(oldEntry.url);
@@ -256,8 +263,8 @@ describe("push", () => {
 
   it("should add to the end of the entries stack", async () => {
     const appHistory = new AppHistory();
-    await appHistory.push({ url: "/temp1" });
-    await appHistory.push({ url: "/temp2" });
+    await appHistory.navigate({ url: "/temp1" });
+    await appHistory.navigate({ url: "/temp2" });
 
     // this test will have to change when I actually put in a sane url in the constructor
     expect(appHistory.entries.map((entry) => entry.url)).toEqual([
@@ -270,16 +277,16 @@ describe("push", () => {
   it("should remove future entries if the current entry is not the last one in the entry stack", async () => {
     const appHistory = new AppHistory();
     const goToEntryKey = appHistory.current.key;
-    await appHistory.push({ url: "/temp1" });
-    await appHistory.push({ url: "/temp2" });
+    await appHistory.navigate({ url: "/temp1" });
+    await appHistory.navigate({ url: "/temp2" });
 
     expect(appHistory.entries.length).toBe(3);
 
-    await appHistory.navigateTo(goToEntryKey);
+    await appHistory.goTo(goToEntryKey);
 
     expect(appHistory.entries.length).toBe(3);
 
-    await appHistory.push({ url: "/temp3" });
+    await appHistory.navigate({ url: "/temp3" });
 
     expect(appHistory.entries.length).toBe(2);
     expect(appHistory.current.url).toBe("/temp3");
@@ -294,11 +301,11 @@ describe("push", () => {
 
     expect(appHistory.current.index).toBe(0);
 
-    await appHistory.push();
+    await appHistory.navigate();
 
     expect(appHistory.current.index).toBe(1);
 
-    await appHistory.push();
+    await appHistory.navigate();
 
     expect(appHistory.current.index).toBe(2);
 
@@ -313,14 +320,14 @@ describe("push", () => {
     expect(appHistory.current.index).toBe(0);
     expect(appHistory.entries.map((entry) => entry.index)).toEqual([0, 1, 2]);
 
-    await appHistory.push();
+    await appHistory.navigate();
     expect(appHistory.current.index).toBe(1);
     expect(appHistory.entries.map((entry) => entry.index)).toEqual([0, 1]);
   });
 
   it("should update appHistory canGoBack and canGoForward", async () => {
     const appHistory = new AppHistory();
-    await appHistory.push();
+    await appHistory.navigate();
 
     expect(appHistory.canGoBack).toBe(true);
     expect(appHistory.canGoForward).toBe(false);
@@ -336,7 +343,7 @@ describe("appHistory eventListeners", () => {
         done();
       });
 
-      await appHistory.push();
+      await appHistory.navigate();
     });
 
     it("should call navigate with an AppHistoryEventNavigateEvent object and current should update", async () => {
@@ -347,7 +354,7 @@ describe("appHistory eventListeners", () => {
       });
 
       const newUrl = "/newUrl";
-      await appHistory.push({ url: newUrl });
+      await appHistory.navigate({ url: newUrl });
 
       expect(navEventObject instanceof Event).toBe(true);
       expect(navEventObject.destination.url).toBe(newUrl);
@@ -362,7 +369,7 @@ describe("appHistory eventListeners", () => {
 
       const newUrl = "/newUrl";
 
-      await expect(appHistory.push({ url: newUrl })).rejects.toThrow(
+      await expect(appHistory.navigate({ url: newUrl })).rejects.toThrow(
         DOMException
       );
       expect(appHistory.current.url).not.toEqual(newUrl);
@@ -380,7 +387,7 @@ describe("appHistory eventListeners", () => {
 
       const navigateInfo = "test";
 
-      await appHistory.update({ url: "/temp", navigateInfo });
+      await appHistory.navigate({ url: "/temp", navigateInfo, replace: true });
 
       expect(expectedInfo).toBeTruthy();
       expect(expectedInfo).toEqual(navigateInfo);
@@ -397,7 +404,7 @@ describe("appHistory eventListeners", () => {
 
       const navigateInfo = "test";
 
-      await appHistory.push({ navigateInfo });
+      await appHistory.navigate({ navigateInfo });
 
       expect(expectedInfo).toBeTruthy();
       expect(expectedInfo).toEqual(navigateInfo);
@@ -409,12 +416,12 @@ describe("appHistory eventListeners", () => {
       const listenerEvents = [];
 
       appHistory.addEventListener("navigate", () => {
-        listenerEvents.push("1");
+        listenerEvents.navigate("1");
         throw new Error("test");
       });
 
       appHistory.addEventListener("navigate", () => {
-        listenerEvents.push("2");
+        listenerEvents.navigate("2");
       });
 
       expect(listenerEvents).toEqual(["1", "2"]);
@@ -433,45 +440,45 @@ describe("appHistory eventListeners", () => {
         timesCalled++;
       };
 
-      await appHistory.push();
+      await appHistory.navigate();
 
       expect(timesCalled).toBe(1);
     });
 
     it("should set 'hashChange' to false if it's cross-document", async (done) => {
       const appHistory = new AppHistory();
-      await appHistory.push("/path");
+      await appHistory.navigate("/path");
 
       appHistory.addEventListener("navigate", (evt) => {
         expect(evt.hashChange).toBe(false);
         done();
       });
 
-      await appHistory.push("/otherPath");
+      await appHistory.navigate("/otherPath");
     });
 
     it("should set 'hashChange' to true if it's same-document", async (done) => {
       const appHistory = new AppHistory();
-      await appHistory.push("/broken");
+      await appHistory.navigate("/broken");
 
       appHistory.addEventListener("navigate", (evt) => {
         expect(evt.hashChange).toBe(true);
         done();
       });
 
-      await appHistory.push("/broken#test");
+      await appHistory.navigate("/broken#test");
     });
 
     it("should set 'hashChange' to false if it's same-document but only query param changed", async (done) => {
       const appHistory = new AppHistory();
-      await appHistory.push("/path#test");
+      await appHistory.navigate("/path#test");
 
       appHistory.addEventListener("navigate", (evt) => {
         expect(evt.hashChange).toBe(false);
         done();
       });
 
-      await appHistory.push("/path?search=new#test");
+      await appHistory.navigate("/path?search=new#test");
     });
 
     it.skip("should throw a SecurityError DOMError if you use respondWith() when canRespond=false", async (done) => {
@@ -490,7 +497,7 @@ describe("appHistory eventListeners", () => {
       };
 
       MockLocation.mock();
-      await appHistory.push("https://example.com");
+      await appHistory.navigate("https://example.com");
       MockLocation.restore();
     });
 
@@ -502,7 +509,7 @@ describe("appHistory eventListeners", () => {
         done();
       };
 
-      await appHistory.push("/test");
+      await appHistory.navigate("/test");
     });
 
     it("should fire abort if another push event happened while the previous respondWith promise is in flight", async (done) => {
@@ -529,11 +536,11 @@ describe("appHistory eventListeners", () => {
       try {
         // intentionally don't call await here so we can fire the next push before this one finishes
         // however, the promise will reject, so we need to handle that
-        const slowPromise = appHistory.push("/slowUrl");
+        const slowPromise = appHistory.navigate("/slowUrl");
         slowEntry = appHistory.current;
 
         await new Promise((resolve) => setTimeout(resolve));
-        await appHistory.push("/newerUrl");
+        await appHistory.navigate("/newerUrl");
         expect(appHistory.current.url).toBe("/newerUrl");
 
         await slowPromise;
@@ -557,7 +564,7 @@ describe("appHistory eventListeners", () => {
         });
 
         const newUrl = "/newUrl";
-        await appHistory.push({ url: newUrl });
+        await appHistory.navigate({ url: newUrl });
 
         expect(appHistory.current.url).toBe(newUrl);
       });
@@ -574,7 +581,7 @@ describe("appHistory eventListeners", () => {
         const newUrl = "/newUrl";
 
         try {
-          await appHistory.push({ url: newUrl });
+          await appHistory.navigate({ url: newUrl });
         } catch (error) {}
 
         expect(appHistory.current.url).toBe(newUrl);
@@ -584,7 +591,7 @@ describe("appHistory eventListeners", () => {
   });
 
   describe("currentchange", () => {
-    it("should fire the currentchange event for push()", async () => {
+    it("should fire the currentchange event for navigate()", async () => {
       // https://github.com/WICG/app-history#current-entry-change-monitoring
 
       const appHistory = new AppHistory();
@@ -595,7 +602,7 @@ describe("appHistory eventListeners", () => {
         currentEvent = event;
       });
 
-      await appHistory.push();
+      await appHistory.navigate();
 
       expect(currentEvent).toBeTruthy();
       expect(currentEvent.startTime).toBeLessThan(currentEvent.timeStamp);
@@ -610,7 +617,7 @@ describe("appHistory eventListeners", () => {
         currentEvent = event;
       });
 
-      await appHistory.update({ state: "newState" });
+      await appHistory.navigate({ state: "newState", replace: true });
 
       expect(currentEvent).toBeTruthy();
       expect(currentEvent.startTime).toBeLessThan(currentEvent.timeStamp);
@@ -630,7 +637,7 @@ describe("appHistory eventListeners", () => {
         listenerEvents.push("2");
       });
 
-      await appHistory.push();
+      await appHistory.navigate();
 
       expect(listenerEvents).toEqual(["1", "2"]);
     });
@@ -648,7 +655,7 @@ describe("appHistory eventListeners", () => {
         timesCalled++;
       };
 
-      await appHistory.push();
+      await appHistory.navigate();
 
       expect(timesCalled).toBe(1);
     });
@@ -667,7 +674,7 @@ describe("appHistory eventListeners", () => {
 
 describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per-entry-events ", () => {
   describe("navigateto", () => {
-    it("fires when the entry becomes current with 'appHistory.navigateto()'", async (done) => {
+    it("fires when the entry becomes current with 'appHistory.goTo()'", async (done) => {
       const appHistory = new AppHistory();
 
       const oldCurrent = appHistory.current;
@@ -675,8 +682,8 @@ describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per
         done();
       });
 
-      await appHistory.push();
-      await appHistory.navigateTo(oldCurrent.key);
+      await appHistory.navigate();
+      await appHistory.goTo(oldCurrent.key);
     });
 
     it("fires when the entry becomes current with 'appHistory.back()'", async (done) => {
@@ -687,14 +694,14 @@ describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per
         done();
       });
 
-      await appHistory.push();
+      await appHistory.navigate();
       await appHistory.back();
     });
 
     it("fires when the entry becomes current with 'appHistory.forward()'", async (done) => {
       const appHistory = new AppHistory();
 
-      await appHistory.push();
+      await appHistory.navigate();
 
       const oldCurrent = appHistory.current;
       oldCurrent.addEventListener("navigateto", () => {
@@ -706,31 +713,31 @@ describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per
     });
   });
   describe("navigatefrom", () => {
-    it("fires when the entry leaves current with 'appHistory.navigateto()'", async (done) => {
+    it("fires when the entry leaves current with 'appHistory.goTo()'", async (done) => {
       const appHistory = new AppHistory();
       const oldCurrent = appHistory.current;
-      await appHistory.push();
+      await appHistory.navigate();
 
       appHistory.current.addEventListener("navigatefrom", () => {
         done();
       });
 
-      await appHistory.navigateTo(oldCurrent.key);
+      await appHistory.goTo(oldCurrent.key);
     });
 
-    it("fires when the entry leaves current with 'appHistory.push()'", async (done) => {
+    it("fires when the entry leaves current with 'appHistory.navigate()'", async (done) => {
       const appHistory = new AppHistory();
 
       appHistory.current.addEventListener("navigatefrom", () => {
         done();
       });
 
-      await appHistory.push();
+      await appHistory.navigate();
     });
 
     it("fires when the entry leaves current with 'appHistory.back()'", async (done) => {
       const appHistory = new AppHistory();
-      await appHistory.push();
+      await appHistory.navigate();
 
       appHistory.current.addEventListener("navigatefrom", () => {
         done();
@@ -742,7 +749,7 @@ describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per
     it("fires when the entry leaves current with 'appHistory.forward()'", async (done) => {
       const appHistory = new AppHistory();
 
-      await appHistory.push();
+      await appHistory.navigate();
       await appHistory.back();
 
       appHistory.current.addEventListener("navigatefrom", () => {
@@ -756,20 +763,20 @@ describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per
     it("fires when a entry is no longer reachable/in the entries list", async (done) => {
       const appHistory = new AppHistory();
 
-      await appHistory.push();
+      await appHistory.navigate();
 
       appHistory.current.addEventListener("dispose", () => {
         done();
       });
 
       await appHistory.back();
-      await appHistory.push();
+      await appHistory.navigate();
     });
 
     it("should have an index of -1 on the entry that's disposed", async (done) => {
       const appHistory = new AppHistory();
 
-      await appHistory.push();
+      await appHistory.navigate();
 
       appHistory.current.addEventListener("dispose", (evt) => {
         expect(evt.detail.target.index).toBe(-1);
@@ -777,7 +784,7 @@ describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per
       });
 
       await appHistory.back();
-      await appHistory.push();
+      await appHistory.navigate();
     });
   });
 
@@ -793,7 +800,7 @@ describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per
         );
       };
 
-      const pushPromise = appHistory.push("/newUrl");
+      const pushPromise = appHistory.navigate("/newUrl");
 
       appHistory.current.addEventListener("finish", () => {
         done();
@@ -804,11 +811,11 @@ describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per
   });
 });
 
-describe("navigateTo", () => {
+describe("goTo", () => {
   it("should throw an exception if the key is no longer in the entries list", async () => {
     const appHistory = new AppHistory();
 
-    await expect(appHistory.navigateTo("non-existent-key")).rejects.toThrow(
+    await expect(appHistory.goTo("non-existent-key")).rejects.toThrow(
       new DOMException("InvalidStateError")
     );
   });
@@ -816,13 +823,13 @@ describe("navigateTo", () => {
   it("should update current but not add/remove anything from entries", async () => {
     const appHistory = new AppHistory();
 
-    await appHistory.push({ url: "/test1" });
+    await appHistory.navigate({ url: "/test1" });
     const oldKey = appHistory.current.key;
-    await appHistory.push({ url: "/test2" });
+    await appHistory.navigate({ url: "/test2" });
 
     expect(appHistory.current.url).toBe("/test2");
 
-    await appHistory.navigateTo(oldKey);
+    await appHistory.goTo(oldKey);
     expect(appHistory.current.url).toBe("/test1");
     expect(appHistory.entries.length).toBe(3);
     expect(appHistory.current).not.toEqual(appHistory.entries[2]);
@@ -830,18 +837,18 @@ describe("navigateTo", () => {
 
   it("should update canGoBack and canGoForward", async () => {
     const appHistory = new AppHistory();
-    await appHistory.push();
-    await appHistory.push();
+    await appHistory.navigate();
+    await appHistory.navigate();
 
-    await appHistory.navigateTo(appHistory.entries[0].key);
+    await appHistory.goTo(appHistory.entries[0].key);
     expect(appHistory.canGoBack).toBe(false);
     expect(appHistory.canGoForward).toBe(true);
 
-    await appHistory.navigateTo(appHistory.entries[1].key);
+    await appHistory.goTo(appHistory.entries[1].key);
     expect(appHistory.canGoBack).toBe(true);
     expect(appHistory.canGoForward).toBe(true);
 
-    await appHistory.navigateTo(appHistory.entries[2].key);
+    await appHistory.goTo(appHistory.entries[2].key);
     expect(appHistory.canGoBack).toBe(true);
     expect(appHistory.canGoForward).toBe(false);
   });
@@ -850,14 +857,14 @@ describe("navigateTo", () => {
     const appHistory = new AppHistory();
     const oldKey = appHistory.current.key;
 
-    await appHistory.push();
+    await appHistory.navigate();
 
     appHistory.addEventListener("navigate", (evt) => {
       expect(evt.info).toBe("navigateToCalled");
       done();
     });
 
-    await appHistory.navigateTo(oldKey, { navigateInfo: "navigateToCalled" });
+    await appHistory.goTo(oldKey, { navigateInfo: "navigateToCalled" });
   });
 });
 
@@ -874,8 +881,8 @@ describe("back", () => {
     const appHistory = new AppHistory();
     const firstUrl = appHistory.current.url;
 
-    await appHistory.push({ url: "/test1" });
-    await appHistory.push({ url: "/test2" });
+    await appHistory.navigate({ url: "/test1" });
+    await appHistory.navigate({ url: "/test2" });
 
     expect(appHistory.current.url).toBe("/test2");
 
@@ -892,8 +899,8 @@ describe("back", () => {
 
   it("should update canGoBack and canGoForward", async () => {
     const appHistory = new AppHistory();
-    await appHistory.push();
-    await appHistory.push();
+    await appHistory.navigate();
+    await appHistory.navigate();
 
     expect(appHistory.canGoBack).toBe(true);
     expect(appHistory.canGoForward).toBe(false);
@@ -910,7 +917,7 @@ describe("back", () => {
   it("should allow 'navigateInfo' as a param and pass that through to the navigate event", async (done) => {
     const appHistory = new AppHistory();
 
-    await appHistory.push();
+    await appHistory.navigate();
 
     appHistory.addEventListener("navigate", (evt) => {
       expect(evt.info).toBe("backCalled");
@@ -934,12 +941,12 @@ describe("forward", () => {
     const appHistory = new AppHistory();
     const firstCurrent = appHistory.current;
 
-    await appHistory.push({ url: "/test1" });
-    await appHistory.push({ url: "/test2" });
+    await appHistory.navigate({ url: "/test1" });
+    await appHistory.navigate({ url: "/test2" });
 
     expect(appHistory.current.url).toBe("/test2");
 
-    await appHistory.navigateTo(firstCurrent.key);
+    await appHistory.goTo(firstCurrent.key);
     expect(appHistory.current).toBe(firstCurrent);
 
     await appHistory.forward();
@@ -956,9 +963,9 @@ describe("forward", () => {
   it("should update canGoBack and canGoForward", async () => {
     const appHistory = new AppHistory();
     const firstEntry = appHistory.current;
-    await appHistory.push();
-    await appHistory.push();
-    await appHistory.navigateTo(firstEntry.key);
+    await appHistory.navigate();
+    await appHistory.navigate();
+    await appHistory.goTo(firstEntry.key);
 
     expect(appHistory.canGoBack).toBe(false);
     expect(appHistory.canGoForward).toBe(true);
@@ -975,7 +982,7 @@ describe("forward", () => {
   it("should allow 'navigateInfo' as a param and pass that through to the navigate event", async (done) => {
     const appHistory = new AppHistory();
 
-    await appHistory.push();
+    await appHistory.navigate();
     await appHistory.back();
 
     appHistory.addEventListener("navigate", (evt) => {
@@ -990,14 +997,14 @@ describe("forward", () => {
 describe("AppHistoryEntry state", () => {
   it("should not provide the state property directly; you must use getState() instead", async () => {
     const appHistory = new AppHistory();
-    await appHistory.update({ state: "newState" });
+    await appHistory.navigate({ state: "newState", replace: true });
     expect(appHistory.current.state).toBe(undefined);
     expect(appHistory.current.getState()).toBe("newState");
   });
 
   it("should provide a copy of state, so if you change it it doesn't affect the entry", async () => {
     const appHistory = new AppHistory();
-    await appHistory.push({ state: { test: "deep string" } });
+    await appHistory.navigate({ state: { test: "deep string" } });
 
     const state = appHistory.current.getState();
     expect(state).toEqual({ test: "deep string" });
@@ -1009,14 +1016,14 @@ describe("AppHistoryEntry state", () => {
 });
 
 describe("events order", () => {
-  it("should fire the events in order for successful push()", async () => {
+  it("should fire the events in order for successful navigate()", async () => {
     // https://github.com/WICG/app-history#complete-event-sequence
     const eventsList = [];
 
     const appHistory = new AppHistory();
 
     // add an entry that will be disposed of later
-    await appHistory.push();
+    await appHistory.navigate();
 
     // can you add a navigateto listener to an new entry that you just pushed?
     // appHistory.current.addEventListener("navigateto", () => {
@@ -1051,7 +1058,7 @@ describe("events order", () => {
     });
 
     // don't await here so we can add the finish listener to the new entry; we await the promise later
-    const pushPromise = appHistory.push();
+    const pushPromise = appHistory.navigate();
 
     appHistory.current.addEventListener("finish", () => {
       eventsList.push("entry.finish");
@@ -1070,14 +1077,14 @@ describe("events order", () => {
     ]);
   });
 
-  it("should fire the events in order for unsuccessful push()", async () => {
+  it("should fire the events in order for unsuccessful navigate()", async () => {
     // https://github.com/WICG/app-history#complete-event-sequence
     const eventsList = [];
 
     const appHistory = new AppHistory();
 
     // add an entry that will be disposed of later
-    await appHistory.push();
+    await appHistory.navigate();
 
     // can you add a navigateto listener to an new entry that you just pushed?
     // appHistory.current.addEventListener("navigateto", () => {
@@ -1112,7 +1119,7 @@ describe("events order", () => {
     });
 
     // don't await here so we can add the finish listener to the new entry; we await the promise later
-    const pushPromise = appHistory.push();
+    const pushPromise = appHistory.navigate();
 
     appHistory.current.addEventListener("finish", () => {
       eventsList.push("entry.finish");
@@ -1167,7 +1174,10 @@ describe("events order", () => {
     });
 
     // don't await here so we can add the finish listener to the new entry; we await the promise later
-    const updatePromise = appHistory.update({ state: "newState" });
+    const updatePromise = appHistory.navigate({
+      state: "newState",
+      replace: true,
+    });
 
     appHistory.current.addEventListener("finish", () => {
       eventsList.push("entry.finish");
@@ -1219,7 +1229,10 @@ describe("events order", () => {
     });
 
     // don't await here so we can add the finish listener to the new entry; we await the promise later
-    const updatePromise = appHistory.update({ state: "newState" });
+    const updatePromise = appHistory.navigate({
+      state: "newState",
+      replace: true,
+    });
 
     appHistory.current.addEventListener("finish", () => {
       eventsList.push("entry.finish");
