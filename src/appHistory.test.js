@@ -672,6 +672,33 @@ describe("appHistory eventListeners", () => {
   });
 });
 
+describe("appHistoryEntry keys and IDs", () => {
+  describe("keys", () => {
+    it("should stay the same even if an appHistoryEntry changes", async () => {
+      const appHistory = new AppHistory();
+      const oldKey = appHistory.current.key;
+      await appHistory.navigate({ replace: true, state: {} });
+      expect(oldKey).toEqual(appHistory.current.key);
+    });
+  });
+
+  describe("IDs", () => {
+    it("should be unique even if replaced", async () => {
+      const appHistory = new AppHistory();
+      const oldId = appHistory.current.id;
+      await appHistory.navigate({ replace: true, state: {} });
+      expect(oldId).not.toEqual(appHistory.current.id);
+    });
+
+    it("should be unique across additions", async () => {
+      const appHistory = new AppHistory();
+      const oldId = appHistory.current.id;
+      await appHistory.navigate("/newUrl");
+      expect(oldId).not.toEqual(appHistory.current.id);
+    });
+  });
+});
+
 describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per-entry-events ", () => {
   describe("navigateto", () => {
     it("fires when the entry becomes current with 'appHistory.goTo()'", async (done) => {

@@ -269,7 +269,7 @@ export class AppHistory {
   }
 
   async goTo(
-    key: AppHistoryEntryKey,
+    key: AppHistoryEntryKeyOrId,
     navigationOptions?: AppHistoryNavigationOptions
   ): Promise<undefined> {
     const entryIndex = this.entries.findIndex((entry) => entry.key === key);
@@ -434,6 +434,7 @@ class AppHistoryEntry {
       this._state = options.state;
     }
     this.key = fakeRandomId();
+    this.id = fakeRandomId();
     this.index = -1;
     this.finished = false;
 
@@ -450,7 +451,8 @@ class AppHistoryEntry {
       upcomingUrlObj.pathname === window.location.pathname;
   }
 
-  key: AppHistoryEntryKey;
+  key: AppHistoryEntryKeyOrId;
+  id: AppHistoryEntryKeyOrId;
   url: string;
   sameDocument: boolean;
   index: number;
@@ -480,7 +482,7 @@ class AppHistoryEntry {
     return;
   }
 
-  /** DO NOT USE; use appHistory.update() instead */
+  /** DO NOT USE; use appHistory.navigate() instead */
   __updateEntry(
     options?: AppHistoryPushOrUpdateFullOptions,
     newIndex?: number
@@ -497,6 +499,8 @@ class AppHistoryEntry {
     if (typeof newIndex === "number") {
       this.index = newIndex;
     }
+
+    this.id = fakeRandomId();
   }
 
   /** DO NOT USE; for internal use only */
@@ -552,7 +556,7 @@ type AppHistoryEntryEventListeners = {
 
 type UpdatePushParam1Types = string | AppHistoryPushOrUpdateFullOptions;
 
-export type AppHistoryEntryKey = string;
+export type AppHistoryEntryKeyOrId = string;
 
 interface AppHistoryNavigationOptions {
   navigateInfo?: unknown;

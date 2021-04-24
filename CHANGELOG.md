@@ -1,5 +1,9 @@
 # AppHistory
 
+## Unreleased
+
+- Added `appHistoryEntry.id` as outlined in https://github.com/WICG/app-history#keys-and-ids
+
 ## 0.0.6
 
 - `appHistory.push()` is now `appHistory.navigate()`
