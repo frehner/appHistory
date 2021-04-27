@@ -168,10 +168,12 @@ export class AppHistory {
         }
         this.transition?.__fireFinished();
         this.transition = undefined;
+
         (options?.replace
           ? previousEntry
           : upcomingEntry
         ).__fireEventListenersForEvent("finish");
+
         this.sendNavigateSuccessEvent();
       })
       .catch((error) => {
@@ -181,10 +183,12 @@ export class AppHistory {
         }
         this.transition?.__fireFinished(error);
         this.transition = undefined;
+
         (options?.replace
           ? previousEntry
           : upcomingEntry
         ).__fireEventListenersForEvent("finish");
+
         this.sendNavigateErrorEvent(error);
         throw error;
       });
@@ -268,20 +272,17 @@ export class AppHistory {
   async goTo(
     key: AppHistoryEntryKeyOrId,
     navigationOptions?: AppHistoryNavigationOptions
-  ): Promise<undefined> {
+  ) {
     const entryIndex = this.entries.findIndex((entry) => entry.key === key);
     if (entryIndex === -1) {
       throw new DOMException("InvalidStateError");
     }
     const navigatedEntry = this.entries[entryIndex];
 
-    await this.changeCurrentEntry(navigatedEntry, navigationOptions);
-    return;
+    return this.changeCurrentEntry(navigatedEntry, navigationOptions);
   }
 
-  async back(
-    navigationOptions?: AppHistoryNavigationOptions
-  ): Promise<undefined> {
+  async back(navigationOptions?: AppHistoryNavigationOptions) {
     const entryIndex = this.entries.findIndex(
       (entry) => entry.key === this.current.key
     );
@@ -291,13 +292,10 @@ export class AppHistory {
     }
 
     const backEntry = this.entries[entryIndex - 1];
-    await this.changeCurrentEntry(backEntry, navigationOptions);
-    return;
+    return this.changeCurrentEntry(backEntry, navigationOptions);
   }
 
-  async forward(
-    navigationOptions?: AppHistoryNavigationOptions
-  ): Promise<undefined> {
+  async forward(navigationOptions?: AppHistoryNavigationOptions) {
     const entryIndex = this.entries.findIndex(
       (entry) => entry.key === this.current.key
     );
@@ -307,21 +305,80 @@ export class AppHistory {
     }
 
     const forwardEntry = this.entries[entryIndex + 1];
-    await this.changeCurrentEntry(forwardEntry, navigationOptions);
-    return;
+    return this.changeCurrentEntry(forwardEntry, navigationOptions);
   }
 
   private async changeCurrentEntry(
     newCurrent: AppHistoryEntry,
     navigationOptions?: AppHistoryNavigationOptions
   ) {
-    await this.sendNavigateEvent(newCurrent, navigationOptions?.navigateInfo);
-    this.current.__fireEventListenersForEvent("navigatefrom");
+    const respondWithPromiseArray = this.sendNavigateEvent(
+      newCurrent,
+      navigationOptions?.navigateInfo
+    );
+
+    const previousEntry = this.current;
+    previousEntry.__fireEventListenersForEvent("navigatefrom");
     this.current = newCurrent;
-    this.current.__fireEventListenersForEvent("navigateto");
 
     this.canGoBack = this.current.index > 0;
     this.canGoForward = this.current.index < this.entries.length - 1;
+
+    const oldTransition = this.transition;
+    this.transition = new AppHistoryTransition({
+      type: "traverse",
+      from: previousEntry,
+    });
+
+    newCurrent.__fireEventListenersForEvent("navigateto");
+
+    if (oldTransition) {
+      // we fire the abort here for previous entry.
+      // which causes the handler below to fire
+      previousEntry.__fireAbortForAssociatedEvent();
+    }
+
+    let thisEntrysAbortError: DOMException | undefined;
+    newCurrent.__getAssociatedAbortSignal()?.addEventListener(
+      "abort",
+      () => {
+        thisEntrysAbortError = new DOMException(
+          `A new entry was added before the promises passed to respondWith() resolved for entry with url ${newCurrent.url}`,
+          "AbortError"
+        );
+        this.sendNavigateErrorEvent(thisEntrysAbortError);
+
+        // reject oldTransition.finished with abort error
+        oldTransition?.__fireFinished(thisEntrysAbortError);
+      },
+      { once: true }
+    );
+
+    return Promise.all(respondWithPromiseArray)
+      .then(() => {
+        if (thisEntrysAbortError) {
+          throw thisEntrysAbortError;
+        }
+        this.transition?.__fireFinished();
+        this.transition = undefined;
+
+        newCurrent.__fireEventListenersForEvent("finish");
+
+        this.sendNavigateSuccessEvent();
+      })
+      .catch((error) => {
+        if (error && error === thisEntrysAbortError) {
+          // abort errors don't change finished or fire the finish event. the navigateError event was already fired
+          throw error;
+        }
+        this.transition?.__fireFinished(error);
+        this.transition = undefined;
+
+        newCurrent.__fireEventListenersForEvent("finish");
+
+        this.sendNavigateErrorEvent(error);
+        throw error;
+      });
   }
 
   private sendNavigateEvent(
