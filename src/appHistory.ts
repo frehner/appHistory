@@ -62,63 +62,27 @@ export class AppHistory {
     param1?: UpdatePushParam1Types,
     param2?: AppHistoryNavigateOptions
   ) {
-    const options = this.getOptionsFromParams(param1, param2);
-
-    if (options?.replace) {
-      return this.replaceNavigation(options);
-    } else {
-      return this.pushNavigation(options);
-    }
-  }
-
-  private async replaceNavigation(
-    options: AppHistoryPushOrUpdateFullOptions | undefined
-  ) {
-    // used in currentchange event
+    // used in the currentchange event
     const startTime = performance.now();
+
+    const options = this.getOptionsFromParams(param1, param2);
 
     if (options?.replace && Object.keys(options).length === 1) {
       throw new Error("Must include more options than just {'replace: true'}");
     }
 
-    // location.href updates here
-
-    this.current.__updateEntry(options ?? {});
-
-    const respondWithPromiseArray = this.sendNavigateEvent(
-      this.current,
-      options?.navigateInfo
-    );
-
-    this.sendCurrentChangeEvent(startTime);
-
-    return Promise.all(respondWithPromiseArray)
-      .then(() => {
-        this.current.__fireEventListenersForEvent("finish");
-        this.sendNavigateSuccessEvent();
-      })
-      .catch((error) => {
-        this.current.__fireEventListenersForEvent("finish");
-        this.sendNavigateErrorEvent(error);
-        throw error;
-      });
-  }
-
-  private async pushNavigation(
-    options: AppHistoryPushOrUpdateFullOptions | undefined
-  ) {
-    // used in the currentchange event
-    const startTime = performance.now();
-
     const previousEntry = this.current;
     const upcomingEntry = new AppHistoryEntry(options, this.current);
 
     const respondWithPromiseArray = this.sendNavigateEvent(
-      upcomingEntry,
+      options?.replace ? this.current : upcomingEntry,
       options?.navigateInfo
     );
 
-    this.current.__fireEventListenersForEvent("navigatefrom");
+    if (!options?.replace) {
+      this.current.__fireEventListenersForEvent("navigatefrom");
+    }
+
     const previousEntryIndex = this.entries.findIndex(
       (entry) => entry.key === previousEntry.key
     );
@@ -127,23 +91,38 @@ export class AppHistory {
       upcomingEntry.url,
       window.location.origin + window.location.pathname
     );
+
     if (upcomingURL.origin === window.location.origin) {
-      window.history.pushState(options?.state, "", upcomingEntry.url);
+      if (options?.replace) {
+        window.history.replaceState(options?.state, "", upcomingEntry.url);
+      } else {
+        window.history.pushState(options?.state, "", upcomingEntry.url);
+      }
     } else {
       window.location.assign(upcomingEntry.url);
     }
 
-    this.current = upcomingEntry;
-    this.canGoBack = true;
-    this.canGoForward = false;
+    if (options?.replace) {
+      this.current.__updateEntry(options ?? {});
+    }
+
+    if (!options?.replace) {
+      this.current = upcomingEntry;
+      this.canGoBack = true;
+      this.canGoForward = false;
+    }
+
     const oldTransition = this.transition;
     this.transition = new AppHistoryTransition({
-      type: "push",
+      type: options?.replace ? "replace" : "push",
       from: previousEntry,
     });
 
     this.sendCurrentChangeEvent(startTime);
-    this.current.__fireEventListenersForEvent("navigateto");
+
+    if (!options?.replace) {
+      this.current.__fireEventListenersForEvent("navigateto");
+    }
 
     if (oldTransition) {
       // we fire the abort here for previous entry.
@@ -167,18 +146,20 @@ export class AppHistory {
       { once: true }
     );
 
-    this.entries.slice(previousEntryIndex + 1).forEach((disposedEntry) => {
-      disposedEntry.__updateEntry(undefined, -1);
-      disposedEntry.__fireEventListenersForEvent("dispose");
-    });
+    if (!options?.replace) {
+      this.entries.slice(previousEntryIndex + 1).forEach((disposedEntry) => {
+        disposedEntry.__updateEntry(undefined, -1);
+        disposedEntry.__fireEventListenersForEvent("dispose");
+      });
 
-    this.entries = [
-      ...this.entries.slice(0, previousEntryIndex + 1),
-      this.current,
-    ].map((entry, entryIndex) => {
-      entry.__updateEntry(undefined, entryIndex);
-      return entry;
-    });
+      this.entries = [
+        ...this.entries.slice(0, previousEntryIndex + 1),
+        this.current,
+      ].map((entry, entryIndex) => {
+        entry.__updateEntry(undefined, entryIndex);
+        return entry;
+      });
+    }
 
     return Promise.all(respondWithPromiseArray)
       .then(() => {
@@ -187,7 +168,10 @@ export class AppHistory {
         }
         this.transition?.__fireFinished();
         this.transition = undefined;
-        upcomingEntry.__fireEventListenersForEvent("finish");
+        (options?.replace
+          ? previousEntry
+          : upcomingEntry
+        ).__fireEventListenersForEvent("finish");
         this.sendNavigateSuccessEvent();
       })
       .catch((error) => {
@@ -197,7 +181,10 @@ export class AppHistory {
         }
         this.transition?.__fireFinished(error);
         this.transition = undefined;
-        upcomingEntry.__fireEventListenersForEvent("finish");
+        (options?.replace
+          ? previousEntry
+          : upcomingEntry
+        ).__fireEventListenersForEvent("finish");
         this.sendNavigateErrorEvent(error);
         throw error;
       });

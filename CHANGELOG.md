@@ -3,6 +3,8 @@
 ## Unreleased
 
 - Added `appHistoryEntry.id` as outlined in https://github.com/WICG/app-history#keys-and-ids
+- Added `appHistory.transition` as outlined in https://github.com/WICG/app-history#transitional-time-after-navigation-interception
+- (internal) Refactored "update" and "push" functions into a single function for `navigate`. This should help keep "push" and "replace" type navigations in sync, as far as getting features at the same time.
 
 ## 0.0.6
 

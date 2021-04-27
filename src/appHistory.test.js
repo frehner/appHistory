@@ -1116,7 +1116,7 @@ describe("appHistory.transition", () => {
       const appHistory = new AppHistory();
       const firstKey = appHistory.current.key;
 
-      await appHistory.push("/newUrl");
+      await appHistory.navigate("/newUrl");
 
       appHistory.addEventListener("navigate", (evt) => {
         evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
@@ -1378,7 +1378,7 @@ describe("events order", () => {
     ]);
   });
 
-  it("should fire the events in order for successful update()", async () => {
+  it("should fire the events in order for successful replace-like navigation()", async () => {
     // https://github.com/WICG/app-history#complete-event-sequence
     const eventsList = [];
 
@@ -1424,10 +1424,10 @@ describe("events order", () => {
 
     expect(eventsList).toEqual([
       "navigate",
-      // "entry.navigatefrom", // update() doesn't cause this to fire, I don't believe
+      // "entry.navigatefrom", // navigate() with replace doesn't cause this to fire, I don't believe
       "currentchange",
       // "entry.navigateto", // can you add a navigateto listener to an new entry that you just pushed?
-      // "entry.dispose", // nothing is disposed when you call update()
+      // "entry.dispose", // nothing is disposed when you call navigate() with replace
       "entry.finish",
       "navigatesuccess",
     ]);
