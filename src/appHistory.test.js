@@ -1250,6 +1250,18 @@ describe("appHistory.transition", () => {
       await navigationPromise;
     });
   });
+
+  describe("transition finish", () => {
+    it("should complete when the transition is done", async () => {
+      const appHistory = new AppHistory();
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      });
+
+      appHistory.navigate("/newUrl");
+      return appHistory.transition.finished;
+    });
+  });
 });
 
 describe("events order", () => {
@@ -1301,7 +1313,13 @@ describe("events order", () => {
       eventsList.push("entry.finish");
     });
 
-    await pushPromise;
+    appHistory.transition.finished.then(() => {
+      eventsList.push("transition.finished");
+    });
+
+    await pushPromise.then(() => {
+      eventsList.push("promise from navigate()");
+    });
 
     expect(eventsList).toEqual([
       "navigate",
@@ -1311,6 +1329,8 @@ describe("events order", () => {
       "entry.dispose",
       "entry.finish",
       "navigatesuccess",
+      "promise from navigate()",
+      "transition.finished",
     ]);
   });
 
@@ -1362,10 +1382,13 @@ describe("events order", () => {
       eventsList.push("entry.finish");
     });
 
-    try {
-      // the promise rejects, so we need to handle that but still run the test
-      await pushPromise;
-    } catch (error) {}
+    appHistory.transition.finished.catch(() => {
+      eventsList.push("transition.finished");
+    });
+
+    await pushPromise.catch(() => {
+      eventsList.push("promise from navigate()");
+    });
 
     expect(eventsList).toEqual([
       "navigate",
@@ -1375,6 +1398,8 @@ describe("events order", () => {
       "entry.dispose",
       "entry.finish",
       "navigateerror",
+      "promise from navigate()",
+      "transition.finished",
     ]);
   });
 
@@ -1420,7 +1445,13 @@ describe("events order", () => {
       eventsList.push("entry.finish");
     });
 
-    await updatePromise;
+    appHistory.transition.finished.then(() => {
+      eventsList.push("transition.finished");
+    });
+
+    await updatePromise.then(() => {
+      eventsList.push("promise from navigate()");
+    });
 
     expect(eventsList).toEqual([
       "navigate",
@@ -1430,10 +1461,12 @@ describe("events order", () => {
       // "entry.dispose", // nothing is disposed when you call navigate() with replace
       "entry.finish",
       "navigatesuccess",
+      "promise from navigate()",
+      "transition.finished",
     ]);
   });
 
-  it("should fire the events in order for unsuccessful update()", async () => {
+  it("should fire the events in order for unsuccessful replace-like navigation()", async () => {
     // https://github.com/WICG/app-history#complete-event-sequence
     const eventsList = [];
 
@@ -1475,10 +1508,13 @@ describe("events order", () => {
       eventsList.push("entry.finish");
     });
 
-    try {
-      // it throws an error but we still want this test to proceed
-      await updatePromise;
-    } catch (error) {}
+    appHistory.transition.finished.catch(() => {
+      eventsList.push("transition.finished");
+    });
+
+    await updatePromise.catch(() => {
+      eventsList.push("promise from navigate()");
+    });
 
     expect(eventsList).toEqual([
       "navigate",
@@ -1488,6 +1524,8 @@ describe("events order", () => {
       // "entry.dispose", // nothing is disposed when you call update()
       "entry.finish",
       "navigateerror",
+      "promise from navigate()",
+      "transition.finished",
     ]);
   });
 });

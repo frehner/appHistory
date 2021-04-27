@@ -166,8 +166,6 @@ export class AppHistory {
         if (thisEntrysAbortError) {
           throw thisEntrysAbortError;
         }
-        this.transition?.__fireFinished();
-        this.transition = undefined;
 
         (options?.replace
           ? previousEntry
@@ -175,14 +173,15 @@ export class AppHistory {
         ).__fireEventListenersForEvent("finish");
 
         this.sendNavigateSuccessEvent();
+
+        this.transition?.__fireFinished();
+        this.transition = undefined;
       })
       .catch((error) => {
         if (error && error === thisEntrysAbortError) {
           // abort errors don't change finished or fire the finish event. the navigateError event was already fired
           throw error;
         }
-        this.transition?.__fireFinished(error);
-        this.transition = undefined;
 
         (options?.replace
           ? previousEntry
@@ -190,6 +189,10 @@ export class AppHistory {
         ).__fireEventListenersForEvent("finish");
 
         this.sendNavigateErrorEvent(error);
+
+        this.transition?.__fireFinished(error);
+        this.transition = undefined;
+
         throw error;
       });
   }
@@ -359,24 +362,27 @@ export class AppHistory {
         if (thisEntrysAbortError) {
           throw thisEntrysAbortError;
         }
-        this.transition?.__fireFinished();
-        this.transition = undefined;
 
         newCurrent.__fireEventListenersForEvent("finish");
 
         this.sendNavigateSuccessEvent();
+
+        this.transition?.__fireFinished();
+        this.transition = undefined;
       })
       .catch((error) => {
         if (error && error === thisEntrysAbortError) {
           // abort errors don't change finished or fire the finish event. the navigateError event was already fired
           throw error;
         }
-        this.transition?.__fireFinished(error);
-        this.transition = undefined;
 
         newCurrent.__fireEventListenersForEvent("finish");
 
         this.sendNavigateErrorEvent(error);
+
+        this.transition?.__fireFinished(error);
+        this.transition = undefined;
+
         throw error;
       });
   }
