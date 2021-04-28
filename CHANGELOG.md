@@ -3,7 +3,9 @@
 ## Unreleased
 
 - Added `appHistoryEntry.id` as outlined in https://github.com/WICG/app-history#keys-and-ids
-- Added `appHistory.transition` as outlined in https://github.com/WICG/app-history#transitional-time-after-navigation-interception
+- Added `appHistory.transition.navigationType` as outlined in https://github.com/WICG/app-history#transitional-time-after-navigation-interception
+- Added `appHistory.transition.from` as outlined in https://github.com/WICG/app-history#transitional-time-after-navigation-interception
+- Added `appHistory.transition.finished` as outlined in https://github.com/WICG/app-history#transitional-time-after-navigation-interception
 - Updated the traversal methods (e.g. `goTo()`) to be more in-line with `navigate()` as far as being able to use `respondWith()` and fire the correct events. There needs to be additional tests added for these methods.
 - (internal) Refactored "update" and "push" functions into a single function for `navigate`. This should help keep "push" and "replace" type navigations in sync, as far as getting features at the same time.
 

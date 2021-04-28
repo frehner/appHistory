@@ -51,150 +51,158 @@ export class AppHistory {
     return options;
   }
 
-  async navigate(
-    fullOptions?: AppHistoryPushOrUpdateFullOptions
-  ): Promise<undefined>;
-  async navigate(
+  navigate(fullOptions?: AppHistoryPushOrUpdateFullOptions): Promise<undefined>;
+  navigate(
     url?: string,
     options?: AppHistoryNavigateOptions
   ): Promise<undefined>;
-  async navigate(
+  navigate(
     param1?: UpdatePushParam1Types,
     param2?: AppHistoryNavigateOptions
-  ) {
-    // used in the currentchange event
-    const startTime = performance.now();
+  ): Promise<void> {
+    return new Promise((resolve, reject) => {
+      // used in the currentchange event
+      const startTime = performance.now();
 
-    const options = this.getOptionsFromParams(param1, param2);
+      const options = this.getOptionsFromParams(param1, param2);
 
-    if (options?.replace && Object.keys(options).length === 1) {
-      throw new Error("Must include more options than just {'replace: true'}");
-    }
-
-    const previousEntry = this.current;
-    const upcomingEntry = new AppHistoryEntry(options, this.current);
-
-    const respondWithPromiseArray = this.sendNavigateEvent(
-      options?.replace ? this.current : upcomingEntry,
-      options?.navigateInfo
-    );
-
-    if (!options?.replace) {
-      this.current.__fireEventListenersForEvent("navigatefrom");
-    }
-
-    const previousEntryIndex = this.entries.findIndex(
-      (entry) => entry.key === previousEntry.key
-    );
-
-    const upcomingURL = new URL(
-      upcomingEntry.url,
-      window.location.origin + window.location.pathname
-    );
-
-    if (upcomingURL.origin === window.location.origin) {
-      if (options?.replace) {
-        window.history.replaceState(options?.state, "", upcomingEntry.url);
-      } else {
-        window.history.pushState(options?.state, "", upcomingEntry.url);
-      }
-    } else {
-      window.location.assign(upcomingEntry.url);
-    }
-
-    if (options?.replace) {
-      this.current.__updateEntry(options ?? {});
-    }
-
-    if (!options?.replace) {
-      this.current = upcomingEntry;
-      this.canGoBack = true;
-      this.canGoForward = false;
-    }
-
-    const oldTransition = this.transition;
-    this.transition = new AppHistoryTransition({
-      type: options?.replace ? "replace" : "push",
-      from: previousEntry,
-    });
-
-    this.sendCurrentChangeEvent(startTime);
-
-    if (!options?.replace) {
-      this.current.__fireEventListenersForEvent("navigateto");
-    }
-
-    if (oldTransition) {
-      // we fire the abort here for previous entry.
-      // which causes the handler below to fire
-      previousEntry.__fireAbortForAssociatedEvent();
-    }
-
-    let thisEntrysAbortError: DOMException | undefined;
-    upcomingEntry.__getAssociatedAbortSignal()?.addEventListener(
-      "abort",
-      () => {
-        thisEntrysAbortError = new DOMException(
-          `A new entry was added before the promises passed to respondWith() resolved for entry with url ${upcomingEntry.url}`,
-          "AbortError"
+      if (options?.replace && Object.keys(options).length === 1) {
+        reject(
+          new Error("Must include more options than just {'replace: true'}")
         );
-        this.sendNavigateErrorEvent(thisEntrysAbortError);
+        return;
+      }
 
-        // reject oldTransition.finished with abort error
-        oldTransition?.__fireFinished(thisEntrysAbortError);
-      },
-      { once: true }
-    );
+      const previousEntry = this.current;
+      const upcomingEntry = new AppHistoryEntry(options, this.current);
 
-    if (!options?.replace) {
-      this.entries.slice(previousEntryIndex + 1).forEach((disposedEntry) => {
-        disposedEntry.__updateEntry(undefined, -1);
-        disposedEntry.__fireEventListenersForEvent("dispose");
-      });
+      const respondWithPromiseArray = this.sendNavigateEvent(
+        options?.replace ? this.current : upcomingEntry,
+        options?.navigateInfo
+      );
 
-      this.entries = [
-        ...this.entries.slice(0, previousEntryIndex + 1),
-        this.current,
-      ].map((entry, entryIndex) => {
-        entry.__updateEntry(undefined, entryIndex);
-        return entry;
-      });
-    }
+      if (!options?.replace) {
+        this.current.__fireEventListenersForEvent("navigatefrom");
+      }
 
-    return Promise.all(respondWithPromiseArray)
-      .then(() => {
-        if (thisEntrysAbortError) {
-          throw thisEntrysAbortError;
+      const previousEntryIndex = this.entries.findIndex(
+        (entry) => entry.key === previousEntry.key
+      );
+
+      const upcomingURL = new URL(
+        upcomingEntry.url,
+        window.location.origin + window.location.pathname
+      );
+
+      if (upcomingURL.origin === window.location.origin) {
+        if (options?.replace) {
+          window.history.replaceState(options?.state, "", upcomingEntry.url);
+        } else {
+          window.history.pushState(options?.state, "", upcomingEntry.url);
         }
+      } else {
+        window.location.assign(upcomingEntry.url);
+      }
 
-        (options?.replace
-          ? previousEntry
-          : upcomingEntry
-        ).__fireEventListenersForEvent("finish");
+      if (options?.replace) {
+        this.current.__updateEntry(options ?? {});
+      }
 
-        this.sendNavigateSuccessEvent();
+      if (!options?.replace) {
+        this.current = upcomingEntry;
+        this.canGoBack = true;
+        this.canGoForward = false;
+      }
 
-        this.transition?.__fireFinished();
-        this.transition = undefined;
-      })
-      .catch((error) => {
-        if (error && error === thisEntrysAbortError) {
-          // abort errors don't change finished or fire the finish event. the navigateError event was already fired
-          throw error;
-        }
-
-        (options?.replace
-          ? previousEntry
-          : upcomingEntry
-        ).__fireEventListenersForEvent("finish");
-
-        this.sendNavigateErrorEvent(error);
-
-        this.transition?.__fireFinished(error);
-        this.transition = undefined;
-
-        throw error;
+      const oldTransition = this.transition;
+      this.transition = new AppHistoryTransition({
+        type: options?.replace ? "replace" : "push",
+        from: previousEntry,
       });
+
+      this.sendCurrentChangeEvent(startTime);
+
+      if (!options?.replace) {
+        this.current.__fireEventListenersForEvent("navigateto");
+      }
+
+      if (oldTransition) {
+        // we fire the abort here for previous entry.
+        // which causes the handler below to fire
+        previousEntry.__fireAbortForAssociatedEvent();
+      }
+
+      let thisEntrysAbortError: DOMException | undefined;
+      upcomingEntry.__getAssociatedAbortSignal()?.addEventListener(
+        "abort",
+        () => {
+          thisEntrysAbortError = new DOMException(
+            `A new entry was added before the promises passed to respondWith() resolved for entry with url ${upcomingEntry.url}`,
+            "AbortError"
+          );
+          this.sendNavigateErrorEvent(thisEntrysAbortError);
+
+          // reject oldTransition.finished with abort error
+          oldTransition?.__fireReject(thisEntrysAbortError);
+        },
+        { once: true }
+      );
+
+      if (!options?.replace) {
+        this.entries.slice(previousEntryIndex + 1).forEach((disposedEntry) => {
+          disposedEntry.__updateEntry(undefined, -1);
+          disposedEntry.__fireEventListenersForEvent("dispose");
+        });
+
+        this.entries = [
+          ...this.entries.slice(0, previousEntryIndex + 1),
+          this.current,
+        ].map((entry, entryIndex) => {
+          entry.__updateEntry(undefined, entryIndex);
+          return entry;
+        });
+      }
+
+      Promise.all(respondWithPromiseArray)
+        .then(() => {
+          if (thisEntrysAbortError) {
+            throw thisEntrysAbortError;
+          }
+
+          (options?.replace
+            ? previousEntry
+            : upcomingEntry
+          ).__fireEventListenersForEvent("finish");
+
+          this.sendNavigateSuccessEvent();
+
+          // the promise returned from 'navigate' needs to fulfill first, before the transition's promise fulfills
+          resolve();
+
+          this.transition?.__fireResolve();
+          this.transition = undefined;
+        })
+        .catch((error) => {
+          if (error && error === thisEntrysAbortError) {
+            // abort errors don't change finished or fire the finish event. the navigateError event was already fired
+            reject(error);
+            return;
+          }
+
+          (options?.replace
+            ? previousEntry
+            : upcomingEntry
+          ).__fireEventListenersForEvent("finish");
+
+          this.sendNavigateErrorEvent(error);
+
+          // the promise returned from 'navigate' needs to fulfill first, before the transition's promise fulfills
+          reject(error);
+
+          this.transition?.__fireReject(error);
+          this.transition = undefined;
+        });
+    });
   }
 
   private onEventListeners: Record<
@@ -352,7 +360,7 @@ export class AppHistory {
         this.sendNavigateErrorEvent(thisEntrysAbortError);
 
         // reject oldTransition.finished with abort error
-        oldTransition?.__fireFinished(thisEntrysAbortError);
+        oldTransition?.__fireReject(thisEntrysAbortError);
       },
       { once: true }
     );
@@ -367,7 +375,7 @@ export class AppHistory {
 
         this.sendNavigateSuccessEvent();
 
-        this.transition?.__fireFinished();
+        this.transition?.__fireResolve();
         this.transition = undefined;
       })
       .catch((error) => {
@@ -380,7 +388,7 @@ export class AppHistory {
 
         this.sendNavigateErrorEvent(error);
 
-        this.transition?.__fireFinished(error);
+        this.transition?.__fireReject(error);
         this.transition = undefined;
 
         throw error;
@@ -715,12 +723,13 @@ class AppHistoryTransition {
   }
 
   /** DO NOT USE; for internal purposes only */
-  __fireFinished(rejectionReason?: unknown): void {
-    if (rejectionReason) {
-      this.finishedResolveReject?.reject(rejectionReason);
-    } else {
-      this.finishedResolveReject?.resolve(undefined);
-    }
+  __fireResolve(): void {
+    this.finishedResolveReject?.resolve(undefined);
+  }
+
+  /** DO NOT USE; for internal purposes only */
+  __fireReject(rejectionReason?: unknown): void {
+    this.finishedResolveReject?.reject(rejectionReason);
   }
 }
 

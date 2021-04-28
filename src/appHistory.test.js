@@ -1313,12 +1313,12 @@ describe("events order", () => {
       eventsList.push("entry.finish");
     });
 
-    appHistory.transition.finished.then(() => {
-      eventsList.push("transition.finished");
+    pushPromise.then(() => {
+      eventsList.push("promise from navigate()");
     });
 
-    await pushPromise.then(() => {
-      eventsList.push("promise from navigate()");
+    await appHistory.transition.finished.then(() => {
+      eventsList.push("transition.finished");
     });
 
     expect(eventsList).toEqual([
@@ -1376,18 +1376,16 @@ describe("events order", () => {
     });
 
     // don't await here so we can add the finish listener to the new entry; we await the promise later
-    const pushPromise = appHistory.navigate();
+    appHistory.navigate().catch(() => {
+      eventsList.push("promise from navigate()");
+    });
 
     appHistory.current.addEventListener("finish", () => {
       eventsList.push("entry.finish");
     });
 
-    appHistory.transition.finished.catch(() => {
+    await appHistory.transition.finished.catch(() => {
       eventsList.push("transition.finished");
-    });
-
-    await pushPromise.catch(() => {
-      eventsList.push("promise from navigate()");
     });
 
     expect(eventsList).toEqual([
@@ -1445,12 +1443,12 @@ describe("events order", () => {
       eventsList.push("entry.finish");
     });
 
-    appHistory.transition.finished.then(() => {
-      eventsList.push("transition.finished");
+    updatePromise.then(() => {
+      eventsList.push("promise from navigate()");
     });
 
-    await updatePromise.then(() => {
-      eventsList.push("promise from navigate()");
+    await appHistory.transition.finished.then(() => {
+      eventsList.push("transition.finished");
     });
 
     expect(eventsList).toEqual([
@@ -1499,21 +1497,21 @@ describe("events order", () => {
     });
 
     // don't await here so we can add the finish listener to the new entry; we await the promise later
-    const updatePromise = appHistory.navigate({
-      state: "newState",
-      replace: true,
-    });
+    appHistory
+      .navigate({
+        state: "newState",
+        replace: true,
+      })
+      .catch(() => {
+        eventsList.push("promise from navigate()");
+      });
 
     appHistory.current.addEventListener("finish", () => {
       eventsList.push("entry.finish");
     });
 
-    appHistory.transition.finished.catch(() => {
+    await appHistory.transition.finished.catch(() => {
       eventsList.push("transition.finished");
-    });
-
-    await updatePromise.catch(() => {
-      eventsList.push("promise from navigate()");
     });
 
     expect(eventsList).toEqual([
