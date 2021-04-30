@@ -375,7 +375,7 @@ describe("appHistory eventListeners", () => {
       expect(appHistory.current.url).not.toEqual(newUrl);
     });
 
-    it("should include the navigateInfo passed from 'update'", async () => {
+    it("should include the navigateInfo passed from navigation with replace:true", async () => {
       // currently skipping this test because of unclear spec requirements
       const appHistory = new AppHistory();
 
@@ -393,7 +393,7 @@ describe("appHistory eventListeners", () => {
       expect(expectedInfo).toEqual(navigateInfo);
     });
 
-    it("should include the navigateInfo passed from 'push'", async () => {
+    it("should include the navigateInfo from navigation'", async () => {
       const appHistory = new AppHistory();
 
       let expectedInfo;
@@ -582,7 +582,8 @@ describe("appHistory eventListeners", () => {
         const newUrl = "/newUrl";
 
         try {
-          await appHistory.navigate({ url: newUrl });
+          const navigatePromise = appHistory.navigate({ url: newUrl });
+          await Promise.all([navigatePromise, appHistory.transition.finished]);
         } catch (error) {}
 
         expect(appHistory.current.url).toBe(newUrl);
