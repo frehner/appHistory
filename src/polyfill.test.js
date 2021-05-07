@@ -91,7 +91,7 @@ describe("useBrowserPolyfill", () => {
     expect(window.appHistory.entries.length).toBe(3);
     expect(window.appHistory.current.url).toBe("http://localhost/page2");
     expect(window.appHistory.entries[1].url).toBe("http://localhost/page1");
-    expect(window.appHistory.entries[1].finished).toBe(false);
+    expect(window.appHistory.transition).toBeFalsy();
   });
 
   it("should not error out if no param passed", () => {

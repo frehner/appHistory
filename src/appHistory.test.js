@@ -375,7 +375,7 @@ describe("appHistory eventListeners", () => {
       expect(appHistory.current.url).not.toEqual(newUrl);
     });
 
-    it("should include the navigateInfo passed from 'update'", async () => {
+    it("should include the navigateInfo passed from navigation with replace:true", async () => {
       // currently skipping this test because of unclear spec requirements
       const appHistory = new AppHistory();
 
@@ -393,7 +393,7 @@ describe("appHistory eventListeners", () => {
       expect(expectedInfo).toEqual(navigateInfo);
     });
 
-    it("should include the navigateInfo passed from 'push'", async () => {
+    it("should include the navigateInfo from navigation'", async () => {
       const appHistory = new AppHistory();
 
       let expectedInfo;
@@ -538,6 +538,7 @@ describe("appHistory eventListeners", () => {
         // however, the promise will reject, so we need to handle that
         const slowPromise = appHistory.navigate("/slowUrl");
         slowEntry = appHistory.current;
+        expect(appHistory.transition).toBeTruthy();
 
         await new Promise((resolve) => setTimeout(resolve));
         await appHistory.navigate("/newerUrl");
@@ -546,7 +547,7 @@ describe("appHistory eventListeners", () => {
         await slowPromise;
       } catch (error) {
         expect(error).toBeInstanceOf(DOMException);
-        expect(slowEntry.finished).toBe(false);
+        expect(slowEntry.transition).toBeFalsy();
       }
     });
 
@@ -581,7 +582,8 @@ describe("appHistory eventListeners", () => {
         const newUrl = "/newUrl";
 
         try {
-          await appHistory.navigate({ url: newUrl });
+          const navigatePromise = appHistory.navigate({ url: newUrl });
+          await Promise.all([navigatePromise, appHistory.transition.finished]);
         } catch (error) {}
 
         expect(appHistory.current.url).toBe(newUrl);
@@ -1042,6 +1044,227 @@ describe("AppHistoryEntry state", () => {
   });
 });
 
+describe("appHistory.transition", () => {
+  it("should not exist when no transition is happening", async () => {
+    const appHistory = new AppHistory();
+    expect(appHistory.transition).toBe(undefined);
+    appHistory.addEventListener("navigate", (evt) => {
+      evt.respondWith(Promise.resolve());
+    });
+    await appHistory.navigate("newUrl");
+    expect(appHistory.transition).toBe(undefined);
+  });
+
+  it("should exist on push-like navigations", async () => {
+    const appHistory = new AppHistory();
+    expect(appHistory.transition).toBe(undefined);
+    appHistory.addEventListener("navigate", (evt) => {
+      evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+    });
+    const navigationPromise = appHistory.navigate("newUrl");
+    expect(appHistory.transition).toBeTruthy();
+
+    await navigationPromise;
+    expect(appHistory.transition).toBe(undefined);
+  });
+
+  it("should exist on replace-like navigations", async () => {
+    const appHistory = new AppHistory();
+    expect(appHistory.transition).toBe(undefined);
+    appHistory.addEventListener("navigate", (evt) => {
+      evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+    });
+    const navigationPromise = appHistory.navigate({ replace: true, state: {} });
+    expect(appHistory.transition).toBeTruthy();
+
+    await navigationPromise;
+    expect(appHistory.transition).toBe(undefined);
+  });
+
+  describe("transition type", () => {
+    it("should be set to 'push' on push-like navigations", async () => {
+      const appHistory = new AppHistory();
+
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      });
+
+      const navigationPromise = appHistory.navigate("/newUrl");
+
+      expect(appHistory.transition.type).toBe("push");
+
+      await navigationPromise;
+    });
+
+    it("should be set to 'replace' on replace-like navigations", async () => {
+      const appHistory = new AppHistory();
+
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      });
+
+      const navigationPromise = appHistory.navigate({
+        replace: true,
+        state: {},
+      });
+
+      expect(appHistory.transition.type).toBe("replace");
+
+      await navigationPromise;
+    });
+
+    it("should be set to 'traverse' on goTo()", async () => {
+      const appHistory = new AppHistory();
+      const firstKey = appHistory.current.key;
+
+      await appHistory.navigate("/newUrl");
+
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      });
+
+      const navigationPromise = appHistory.goTo(firstKey);
+
+      expect(appHistory.transition.type).toBe("traverse");
+
+      await navigationPromise;
+    });
+
+    it("should be set to 'traverse' on forward()", async () => {
+      const appHistory = new AppHistory();
+
+      await appHistory.navigate("/newUrl");
+      await appHistory.back();
+
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      });
+
+      const navigationPromise = appHistory.forward();
+
+      expect(appHistory.transition.type).toBe("traverse");
+
+      await navigationPromise;
+    });
+
+    it("should be set to 'traverse' on back()", async () => {
+      const appHistory = new AppHistory();
+
+      await appHistory.navigate("/newUrl");
+
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      });
+
+      const navigationPromise = appHistory.back();
+
+      expect(appHistory.transition.type).toBe("traverse");
+
+      await navigationPromise;
+    });
+  });
+
+  describe("transition from", () => {
+    it("should correctly set the AppHistoryEntry on push-like navigations", async () => {
+      const appHistory = new AppHistory();
+      const firstEntry = appHistory.current;
+
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      });
+
+      const navigationPromise = appHistory.navigate("/newUrl");
+
+      expect(appHistory.transition.from).toBe(firstEntry);
+
+      await navigationPromise;
+    });
+
+    it("should correctly set the AppHistoryEntry on replace-like navigations", async () => {
+      const appHistory = new AppHistory();
+      const firstEntry = appHistory.current;
+
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      });
+
+      const navigationPromise = appHistory.navigate({
+        replace: true,
+        state: {},
+      });
+
+      expect(appHistory.transition.from).toBe(firstEntry);
+
+      await navigationPromise;
+    });
+
+    it("should correctly set the AppHistoryEntry in goTo()", async () => {
+      const appHistory = new AppHistory();
+      const firstKey = appHistory.current.key;
+
+      await appHistory.navigate("/newUrl");
+      const expectedFrom = appHistory.current;
+
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      });
+
+      const navigationPromise = appHistory.goTo(firstKey);
+
+      expect(appHistory.transition.from).toBe(expectedFrom);
+
+      await navigationPromise;
+    });
+
+    it("should correctly set the AppHistoryEntry in forward()", async () => {
+      const appHistory = new AppHistory();
+      const expectedFrom = appHistory.current;
+
+      await appHistory.navigate("/newUrl");
+      await appHistory.back();
+
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      });
+
+      const navigationPromise = appHistory.forward();
+
+      expect(appHistory.transition.from).toBe(expectedFrom);
+
+      await navigationPromise;
+    });
+
+    it("should correctly set the AppHistoryEntry in back()", async () => {
+      const appHistory = new AppHistory();
+
+      await appHistory.navigate("/newUrl");
+      const expectedFrom = appHistory.current;
+
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      });
+
+      const navigationPromise = appHistory.back();
+
+      expect(appHistory.transition.from).toBe(expectedFrom);
+
+      await navigationPromise;
+    });
+  });
+
+  describe("transition finish", () => {
+    it("should complete when the transition is done", async () => {
+      const appHistory = new AppHistory();
+      appHistory.addEventListener("navigate", (evt) => {
+        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      });
+
+      appHistory.navigate("/newUrl");
+      return appHistory.transition.finished;
+    });
+  });
+});
+
 describe("events order", () => {
   it("should fire the events in order for successful navigate()", async () => {
     // https://github.com/WICG/app-history#complete-event-sequence
@@ -1091,7 +1314,13 @@ describe("events order", () => {
       eventsList.push("entry.finish");
     });
 
-    await pushPromise;
+    pushPromise.then(() => {
+      eventsList.push("promise from navigate()");
+    });
+
+    await appHistory.transition.finished.then(() => {
+      eventsList.push("transition.finished");
+    });
 
     expect(eventsList).toEqual([
       "navigate",
@@ -1101,6 +1330,8 @@ describe("events order", () => {
       "entry.dispose",
       "entry.finish",
       "navigatesuccess",
+      "promise from navigate()",
+      "transition.finished",
     ]);
   });
 
@@ -1146,16 +1377,17 @@ describe("events order", () => {
     });
 
     // don't await here so we can add the finish listener to the new entry; we await the promise later
-    const pushPromise = appHistory.navigate();
+    appHistory.navigate().catch(() => {
+      eventsList.push("promise from navigate()");
+    });
 
     appHistory.current.addEventListener("finish", () => {
       eventsList.push("entry.finish");
     });
 
-    try {
-      // the promise rejects, so we need to handle that but still run the test
-      await pushPromise;
-    } catch (error) {}
+    await appHistory.transition.finished.catch(() => {
+      eventsList.push("transition.finished");
+    });
 
     expect(eventsList).toEqual([
       "navigate",
@@ -1165,10 +1397,12 @@ describe("events order", () => {
       "entry.dispose",
       "entry.finish",
       "navigateerror",
+      "promise from navigate()",
+      "transition.finished",
     ]);
   });
 
-  it("should fire the events in order for successful update()", async () => {
+  it("should fire the events in order for successful replace-like navigation()", async () => {
     // https://github.com/WICG/app-history#complete-event-sequence
     const eventsList = [];
 
@@ -1210,20 +1444,28 @@ describe("events order", () => {
       eventsList.push("entry.finish");
     });
 
-    await updatePromise;
+    updatePromise.then(() => {
+      eventsList.push("promise from navigate()");
+    });
+
+    await appHistory.transition.finished.then(() => {
+      eventsList.push("transition.finished");
+    });
 
     expect(eventsList).toEqual([
       "navigate",
-      // "entry.navigatefrom", // update() doesn't cause this to fire, I don't believe
+      // "entry.navigatefrom", // navigate() with replace doesn't cause this to fire, I don't believe
       "currentchange",
       // "entry.navigateto", // can you add a navigateto listener to an new entry that you just pushed?
-      // "entry.dispose", // nothing is disposed when you call update()
+      // "entry.dispose", // nothing is disposed when you call navigate() with replace
       "entry.finish",
       "navigatesuccess",
+      "promise from navigate()",
+      "transition.finished",
     ]);
   });
 
-  it("should fire the events in order for unsuccessful update()", async () => {
+  it("should fire the events in order for unsuccessful replace-like navigation()", async () => {
     // https://github.com/WICG/app-history#complete-event-sequence
     const eventsList = [];
 
@@ -1256,19 +1498,22 @@ describe("events order", () => {
     });
 
     // don't await here so we can add the finish listener to the new entry; we await the promise later
-    const updatePromise = appHistory.navigate({
-      state: "newState",
-      replace: true,
-    });
+    appHistory
+      .navigate({
+        state: "newState",
+        replace: true,
+      })
+      .catch(() => {
+        eventsList.push("promise from navigate()");
+      });
 
     appHistory.current.addEventListener("finish", () => {
       eventsList.push("entry.finish");
     });
 
-    try {
-      // it throws an error but we still want this test to proceed
-      await updatePromise;
-    } catch (error) {}
+    await appHistory.transition.finished.catch(() => {
+      eventsList.push("transition.finished");
+    });
 
     expect(eventsList).toEqual([
       "navigate",
@@ -1278,6 +1523,8 @@ describe("events order", () => {
       // "entry.dispose", // nothing is disposed when you call update()
       "entry.finish",
       "navigateerror",
+      "promise from navigate()",
+      "transition.finished",
     ]);
   });
 });
