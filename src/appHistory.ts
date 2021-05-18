@@ -709,11 +709,16 @@ class AppHistoryTransition {
     this.finished = new Promise((resolve, reject) => {
       this.finishedResolveReject = { resolve, reject };
     });
+
+    // per https://github.com/WICG/app-history/pull/90#issuecomment-831457025
+    // finished should be immediately handled
+    // and the reference to Streams can be found here https://github.com/whatwg/streams/issues/547
+    this.finished.catch(() => {});
   }
 
   type: AppHistoryNavigationType;
   from: AppHistoryEntry;
-  finished: Promise<undefined>;
+  finished: Promise<void>;
   private finishedResolveReject?: {
     resolve: (value: PromiseLike<undefined> | undefined) => void;
     reject: (reason: unknown) => void;

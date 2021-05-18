@@ -582,8 +582,7 @@ describe("appHistory eventListeners", () => {
         const newUrl = "/newUrl";
 
         try {
-          const navigatePromise = appHistory.navigate({ url: newUrl });
-          await Promise.all([navigatePromise, appHistory.transition.finished]);
+          await appHistory.navigate({ url: newUrl });
         } catch (error) {}
 
         expect(appHistory.current.url).toBe(newUrl);
