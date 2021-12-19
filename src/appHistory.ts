@@ -76,7 +76,7 @@ export class AppHistory {
       const previousEntry = this.current;
       const upcomingEntry = new AppHistoryEntry(options, this.current);
 
-      const respondWithPromiseArray = this.sendNavigateEvent(
+      const transitionWhilePromiseArray = this.sendNavigateEvent(
         options?.replace ? this.current : upcomingEntry,
         options?.navigateInfo
       );
@@ -137,7 +137,7 @@ export class AppHistory {
         "abort",
         () => {
           thisEntrysAbortError = new DOMException(
-            `A new entry was added before the promises passed to respondWith() resolved for entry with url ${upcomingEntry.url}`,
+            `A new entry was added before the promises passed to transitionWhile() resolved for entry with url ${upcomingEntry.url}`,
             "AbortError"
           );
           this.sendNavigateErrorEvent(thisEntrysAbortError);
@@ -163,7 +163,7 @@ export class AppHistory {
         });
       }
 
-      Promise.all(respondWithPromiseArray)
+      Promise.all(transitionWhilePromiseArray)
         .then(() => {
           if (thisEntrysAbortError) {
             throw thisEntrysAbortError;
@@ -323,7 +323,7 @@ export class AppHistory {
     newCurrent: AppHistoryEntry,
     navigationOptions?: AppHistoryNavigationOptions
   ) {
-    const respondWithPromiseArray = this.sendNavigateEvent(
+    const transitionWhilePromiseArray = this.sendNavigateEvent(
       newCurrent,
       navigationOptions?.navigateInfo
     );
@@ -354,7 +354,7 @@ export class AppHistory {
       "abort",
       () => {
         thisEntrysAbortError = new DOMException(
-          `A new entry was added before the promises passed to respondWith() resolved for entry with url ${newCurrent.url}`,
+          `A new entry was added before the promises passed to transitionWhile() resolved for entry with url ${newCurrent.url}`,
           "AbortError"
         );
         this.sendNavigateErrorEvent(thisEntrysAbortError);
@@ -365,7 +365,7 @@ export class AppHistory {
       { once: true }
     );
 
-    return Promise.all(respondWithPromiseArray)
+    return Promise.all(transitionWhilePromiseArray)
       .then(() => {
         if (thisEntrysAbortError) {
           throw thisEntrysAbortError;
@@ -399,14 +399,14 @@ export class AppHistory {
     destinationEntry: AppHistoryEntry,
     info?: unknown
   ): Array<Promise<undefined>> {
-    const respondWithResponses: Array<Promise<undefined>> = [];
+    const transitionWhileResponses: Array<Promise<undefined>> = [];
 
     const upcomingURL = new URL(
       destinationEntry.url,
       window.location.origin + window.location.pathname
     );
 
-    const canRespond = upcomingURL.origin === window.location.origin;
+    const canTransition = upcomingURL.origin === window.location.origin;
 
     const navigateEvent = new AppHistoryNavigateEvent({
       cancelable: true,
@@ -416,14 +416,14 @@ export class AppHistory {
         upcomingURL.hash !== window.location.hash,
       destination: destinationEntry,
       info,
-      canRespond,
-      respondWith: (respondWithPromise: Promise<undefined>): void => {
-        if (canRespond) {
+      canTransition,
+      transitionWhile: (transitionWhilePromise: Promise<undefined>): void => {
+        if (canTransition) {
           destinationEntry.sameDocument = true;
-          respondWithResponses.push(respondWithPromise);
+          transitionWhileResponses.push(transitionWhilePromise);
         } else {
           throw new DOMException(
-            "Cannot call AppHistoryNavigateEvent.respondWith() if AppHistoryNavigateEvent.canRespond is false",
+            "Cannot call AppHistoryNavigateEvent.transitionWhile() if AppHistoryNavigateEvent.canTransition is false",
             "SecurityError"
           );
         }
@@ -448,7 +448,7 @@ export class AppHistory {
       throw new DOMException("AbortError");
     }
 
-    return respondWithResponses;
+    return transitionWhileResponses;
   }
 
   private sendCurrentChangeEvent(startTime: DOMHighResTimeStamp): void {
@@ -643,8 +643,8 @@ interface AppHistoryNavigateEventOptions extends EventInit {
   destination: AppHistoryEntry;
   formData?: null;
   info: unknown;
-  canRespond: boolean;
-  respondWith: (respondWithPromise: Promise<undefined>) => void;
+  canTransition: boolean;
+  transitionWhile: (transitionWhilePromise: Promise<undefined>) => void;
 }
 class AppHistoryNavigateEvent extends Event {
   constructor(eventInit: AppHistoryNavigateEventOptions) {
@@ -653,8 +653,8 @@ class AppHistoryNavigateEvent extends Event {
     this.hashChange = eventInit.hashChange ?? false;
     this.destination = eventInit.destination;
     this.formData = eventInit.formData;
-    this.canRespond = eventInit.canRespond;
-    this.respondWith = eventInit.respondWith;
+    this.canTransition = eventInit.canTransition;
+    this.transitionWhile = eventInit.transitionWhile;
     this.info = eventInit.info;
     this.abortController = new AbortController();
     this.signal = this.abortController.signal;
@@ -664,8 +664,8 @@ class AppHistoryNavigateEvent extends Event {
   readonly destination: AppHistoryEntry;
   readonly formData?: null;
   readonly info: unknown;
-  readonly canRespond: boolean;
-  respondWith: (respondWithPromise: Promise<undefined>) => void;
+  readonly canTransition: boolean;
+  transitionWhile: (transitionWhilePromise: Promise<undefined>) => void;
   readonly signal: AbortSignal;
   private abortController: AbortController;
 
