@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Changed `respondWith()` to `transitionWhile()`, and `canRespond` to `canTransition`
 - Added `appHistoryEntry.id` as outlined in https://github.com/WICG/app-history#keys-and-ids
 - Added `appHistory.transition.navigationType` as outlined in https://github.com/WICG/app-history#transitional-time-after-navigation-interception
 - Added `appHistory.transition.from` as outlined in https://github.com/WICG/app-history#transitional-time-after-navigation-interception
