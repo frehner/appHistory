@@ -31,11 +31,11 @@ describe("AppHistoryEntry constructor", () => {
     await appHistory.navigate("#new-test");
     expect(appHistory.current.sameDocument).toBe(true);
 
-    // any cross-document navigations are turned into same-document navigations if respondWith receives a promise
+    // any cross-document navigations are turned into same-document navigations if transitionWhile receives a promise
     let navigateEvent = null;
     appHistory.onnavigate = (evt) => {
       navigateEvent = evt;
-      evt.respondWith(Promise.resolve());
+      evt.transitionWhile(Promise.resolve());
     };
     await appHistory.navigate("/url2");
     expect(navigateEvent.destination.sameDocument).toBe(true);
@@ -481,12 +481,12 @@ describe("appHistory eventListeners", () => {
       await appHistory.navigate("/path?search=new#test");
     });
 
-    it.skip("should throw a SecurityError DOMError if you use respondWith() when canRespond=false", async (done) => {
+    it.skip("should throw a SecurityError DOMError if you use transitionWhile() when canTransition=false", async (done) => {
       const appHistory = new AppHistory();
 
       appHistory.addEventListener("navigate", (evt) => {
-        expect(evt.canRespond).toBe(false);
-        expect(() => evt.respondWith(Promise.resolve())).rejects.toThrowError(
+        expect(evt.canTransition).toBe(false);
+        expect(() => evt.transitionWhile(Promise.resolve())).rejects.toThrowError(
           new DOMException()
         );
         done();
@@ -512,12 +512,12 @@ describe("appHistory eventListeners", () => {
       await appHistory.navigate("/test");
     });
 
-    it("should fire abort if another push event happened while the previous respondWith promise is in flight", async (done) => {
+    it("should fire abort if another push event happened while the previous transitionWhile promise is in flight", async (done) => {
       const appHistory = new AppHistory();
 
       let timesCalled = 0;
       appHistory.onnavigate = (evt) => {
-        evt.respondWith(
+        evt.transitionWhile(
           (async () => {
             if (timesCalled === 0) {
               timesCalled++;
@@ -554,14 +554,14 @@ describe("appHistory eventListeners", () => {
     it.todo("add a case for when search params come after the hash?");
 
     it.todo(
-      "all the 'canRespond' cases from https://github.com/WICG/app-history#appendix-types-of-navigations"
+      "all the 'canTransition' cases from https://github.com/WICG/app-history#appendix-types-of-navigations"
     );
 
-    describe("respondWith", () => {
+    describe("transitionWhile", () => {
       it("should work if the promise resolves successfully", async () => {
         const appHistory = new AppHistory();
         appHistory.addEventListener("navigate", (evt) => {
-          evt.respondWith(Promise.resolve());
+          evt.transitionWhile(Promise.resolve());
         });
 
         const newUrl = "/newUrl";
@@ -576,7 +576,7 @@ describe("appHistory eventListeners", () => {
         let upcomingEntry;
         appHistory.addEventListener("navigate", (evt) => {
           upcomingEntry = evt.destination;
-          evt.respondWith(Promise.reject());
+          evt.transitionWhile(Promise.reject());
         });
 
         const newUrl = "/newUrl";
@@ -821,7 +821,7 @@ describe("appHistoryEntry eventListeners https://github.com/WICG/app-history#per
       const appHistory = new AppHistory();
 
       appHistory.onnavigate = (evt) => {
-        evt.respondWith(
+        evt.transitionWhile(
           new Promise((resolve) => {
             setTimeout(resolve, 10);
           })
@@ -1048,7 +1048,7 @@ describe("appHistory.transition", () => {
     const appHistory = new AppHistory();
     expect(appHistory.transition).toBe(undefined);
     appHistory.addEventListener("navigate", (evt) => {
-      evt.respondWith(Promise.resolve());
+      evt.transitionWhile(Promise.resolve());
     });
     await appHistory.navigate("newUrl");
     expect(appHistory.transition).toBe(undefined);
@@ -1058,7 +1058,7 @@ describe("appHistory.transition", () => {
     const appHistory = new AppHistory();
     expect(appHistory.transition).toBe(undefined);
     appHistory.addEventListener("navigate", (evt) => {
-      evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
     });
     const navigationPromise = appHistory.navigate("newUrl");
     expect(appHistory.transition).toBeTruthy();
@@ -1071,7 +1071,7 @@ describe("appHistory.transition", () => {
     const appHistory = new AppHistory();
     expect(appHistory.transition).toBe(undefined);
     appHistory.addEventListener("navigate", (evt) => {
-      evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+      evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
     });
     const navigationPromise = appHistory.navigate({ replace: true, state: {} });
     expect(appHistory.transition).toBeTruthy();
@@ -1085,7 +1085,7 @@ describe("appHistory.transition", () => {
       const appHistory = new AppHistory();
 
       appHistory.addEventListener("navigate", (evt) => {
-        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+        evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
       });
 
       const navigationPromise = appHistory.navigate("/newUrl");
@@ -1099,7 +1099,7 @@ describe("appHistory.transition", () => {
       const appHistory = new AppHistory();
 
       appHistory.addEventListener("navigate", (evt) => {
-        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+        evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
       });
 
       const navigationPromise = appHistory.navigate({
@@ -1119,7 +1119,7 @@ describe("appHistory.transition", () => {
       await appHistory.navigate("/newUrl");
 
       appHistory.addEventListener("navigate", (evt) => {
-        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+        evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
       });
 
       const navigationPromise = appHistory.goTo(firstKey);
@@ -1136,7 +1136,7 @@ describe("appHistory.transition", () => {
       await appHistory.back();
 
       appHistory.addEventListener("navigate", (evt) => {
-        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+        evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
       });
 
       const navigationPromise = appHistory.forward();
@@ -1152,7 +1152,7 @@ describe("appHistory.transition", () => {
       await appHistory.navigate("/newUrl");
 
       appHistory.addEventListener("navigate", (evt) => {
-        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+        evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
       });
 
       const navigationPromise = appHistory.back();
@@ -1169,7 +1169,7 @@ describe("appHistory.transition", () => {
       const firstEntry = appHistory.current;
 
       appHistory.addEventListener("navigate", (evt) => {
-        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+        evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
       });
 
       const navigationPromise = appHistory.navigate("/newUrl");
@@ -1184,7 +1184,7 @@ describe("appHistory.transition", () => {
       const firstEntry = appHistory.current;
 
       appHistory.addEventListener("navigate", (evt) => {
-        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+        evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
       });
 
       const navigationPromise = appHistory.navigate({
@@ -1205,7 +1205,7 @@ describe("appHistory.transition", () => {
       const expectedFrom = appHistory.current;
 
       appHistory.addEventListener("navigate", (evt) => {
-        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+        evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
       });
 
       const navigationPromise = appHistory.goTo(firstKey);
@@ -1223,7 +1223,7 @@ describe("appHistory.transition", () => {
       await appHistory.back();
 
       appHistory.addEventListener("navigate", (evt) => {
-        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+        evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
       });
 
       const navigationPromise = appHistory.forward();
@@ -1240,7 +1240,7 @@ describe("appHistory.transition", () => {
       const expectedFrom = appHistory.current;
 
       appHistory.addEventListener("navigate", (evt) => {
-        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+        evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
       });
 
       const navigationPromise = appHistory.back();
@@ -1255,7 +1255,7 @@ describe("appHistory.transition", () => {
     it("should complete when the transition is done", async () => {
       const appHistory = new AppHistory();
       appHistory.addEventListener("navigate", (evt) => {
-        evt.respondWith(new Promise((resolve) => setTimeout(resolve, 10)));
+        evt.transitionWhile(new Promise((resolve) => setTimeout(resolve, 10)));
       });
 
       appHistory.navigate("/newUrl");
@@ -1291,7 +1291,7 @@ describe("events order", () => {
 
     appHistory.addEventListener("navigate", (evt) => {
       eventsList.push("navigate");
-      evt.respondWith(
+      evt.transitionWhile(
         new Promise((resolve) => {
           setTimeout(resolve, 10);
         })
@@ -1360,7 +1360,7 @@ describe("events order", () => {
 
     appHistory.addEventListener("navigate", (evt) => {
       eventsList.push("navigate");
-      evt.respondWith(
+      evt.transitionWhile(
         new Promise((_, reject) => {
           setTimeout(reject, 10);
         })
@@ -1418,7 +1418,7 @@ describe("events order", () => {
 
     appHistory.addEventListener("navigate", (evt) => {
       eventsList.push("navigate");
-      evt.respondWith(
+      evt.transitionWhile(
         new Promise((respond) => {
           setTimeout(respond, 10);
         })
@@ -1481,7 +1481,7 @@ describe("events order", () => {
 
     appHistory.addEventListener("navigate", (evt) => {
       eventsList.push("navigate");
-      evt.respondWith(
+      evt.transitionWhile(
         new Promise((_, reject) => {
           setTimeout(reject, 10);
         })
