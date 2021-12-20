@@ -74,11 +74,11 @@ describe("useBrowserPolyfill", () => {
   it("should abort a previous anchor click if the promise isn't complete yet", async () => {
     useBrowserPolyfill({ configurable: true });
 
-    let firsttransitionWhile;
+    let firstTransitionWhile;
     window.appHistory.addEventListener("navigate", (evt) => {
       if (evt.destination.url === "/page1") {
-        firsttransitionWhile = new Promise((resolve) => setTimeout(resolve, 10));
-        evt.transitionWhile(firsttransitionWhile);
+        firstTransitionWhile = new Promise((resolve) => setTimeout(resolve, 10));
+        evt.transitionWhile(firstTransitionWhile);
       }
     });
 
@@ -86,7 +86,7 @@ describe("useBrowserPolyfill", () => {
 
     [...document.querySelectorAll("a")].forEach((ele) => ele.click());
 
-    await firsttransitionWhile;
+    await firstTransitionWhile;
 
     expect(window.appHistory.entries.length).toBe(3);
     expect(window.appHistory.current.url).toBe("http://localhost/page2");
